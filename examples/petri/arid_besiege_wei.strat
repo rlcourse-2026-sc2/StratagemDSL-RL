@@ -1,0 +1,135 @@
+// 围魏救赵 (Besiege Wei to rescue Zhao) as a Petri net, on assets/base_maps/arid_plateau.SC2Map.
+// Every position is a point_xy checked against the map's terrain (strat mapinfo --check).
+//
+//   Zhao  = our Nexus on the south-east high ground (P1, level 3), whose only
+//           way down is the R1 ramp in the far south-west.
+//   Wei   = the Zerg siege army besieging it, and the Zerg Hatchery (Daliang)
+//           on the north-east lowland (P5, level 1), reached through R2 / R3.
+//   Qi    = two Protoss armies on the west plain (P4, level 2):
+//           * raid_force (Stalkers) marches on the Hatchery instead of the Nexus;
+//           * ambush_force (Zealots + Immortals) waits at Guiling (44, 33), on
+//             the Zerg's way home (down R1, north-east across the plain, down R2;
+//             computed with `strat route`).
+//
+//   rear_threat   the Stalkers entering the Hatchery zone recall the siege army
+//                 (retarget toward the raid) and leave a token in `recalled`
+//   lifted        the siege of the Nexus ends once the army has turned away;
+//                 marks `relief_done` (Zhao relieved)
+//   spring        the Zerg entering Guiling (with ?recalled) springs the ambush;
+//   turn_back     on the same event the Stalkers leave the Hatchery and close
+//                 the pincer from behind
+//   won / lost    first_wins: the siege army destroyed with Zhao relieved
+//                 (?relief_done) and the Nexus alive, or the Nexus destroyed
+strategy arid_besiege_wei {
+  world {
+    force raid_force { side = "ally"; role = "relief"; }
+    force ambush_force { side = "ally"; role = "ambush"; }
+    force siege_force { side = "enemy"; role = "siege"; }
+    asset besieged_base { side = "ally"; role = "protected"; }
+    asset enemy_home { side = "enemy"; role = "critical"; }
+    region enemy_home_zone { role = "threat_trigger"; }
+    region ambush_zone { role = "exploit"; }
+  }
+  initial { alive(raid_force); alive(ambush_force); alive(siege_force); alive(besieged_base); alive(enemy_home); targeting(siege_force, besieged_base); }
+  intent {
+    pattern IndirectRelief {
+      relief_force = raid_force;
+      pressure_force = siege_force;
+      protected_target = besieged_base;
+      diversion_target = enemy_home;
+    }
+    primary base_relieved;
+    secondary alive(besieged_base);
+    success (alive(besieged_base) and defeated(siege_force));
+    failure destroyed(besieged_base);
+  }
+  semantics {
+    derive base_relieved = not (targeting(siege_force, besieged_base));
+  }
+  plan {
+    start [siege, raid, lie_in_wait, failure_watch];
+    place recalled { purpose "the siege army has been recalled to defend the Hatchery"; capacity 1; }
+    place relief_done { purpose "Zhao is relieved: the siege army has left the Nexus"; capacity 1; }
+    phase siege {
+      purpose "Wei: the Zerg army besieges our Nexus on the south-east high ground.";
+      actors [siege_force];
+      focus [besieged_base];
+      do { attack(siege_force, besieged_base); }
+    }
+    phase raid {
+      purpose "Qi: instead of relieving the Nexus, the Stalkers march on the Zerg Hatchery.";
+      actors [raid_force];
+      focus [enemy_home];
+      do { move(raid_force, enemy_home_zone); }
+    }
+    phase press {
+      purpose "Keep hitting the Hatchery so the siege army has to keep coming home.";
+      actors [raid_force];
+      focus [enemy_home];
+      do { attack(raid_force, enemy_home); }
+    }
+    phase lie_in_wait {
+      purpose "Zealots and Immortals wait at Guiling, the pass in front of the R2 ramp.";
+      actors [ambush_force];
+      focus [siege_force];
+      do { move(ambush_force, ambush_zone); }
+    }
+    phase ambush {
+      purpose "The ambush hits the siege army as it crosses the pass.";
+      actors [ambush_force];
+      focus [siege_force];
+      do { attack(ambush_force, siege_force); }
+    }
+    phase pincer {
+      purpose "The Stalkers come back from the Hatchery and hit the siege army from behind.";
+      actors [raid_force];
+      focus [siege_force];
+      do { attack(raid_force, siege_force); }
+    }
+    phase won { purpose "The siege army is destroyed and the Nexus survived."; actors [ambush_force, raid_force]; terminal success; }
+    phase failure_watch { purpose "Independently watch intent.failure."; }
+    phase lost { purpose "The Nexus fell."; terminal failure; }
+    transition rear_threat: raid -> press, recalled {
+      on enter(raid_force, enemy_home_zone);
+      when alive(besieged_base);
+      do { retarget(siege_force, raid_force); }
+      priority 10;
+    }
+    transition lifted: siege, ?recalled -> relief_done {
+      when (base_relieved and alive(besieged_base));
+      priority 10;
+    }
+    transition spring: lie_in_wait, ?recalled -> ambush {
+      on enter(siege_force, ambush_zone);
+      when alive(ambush_force);
+      priority 10;
+    }
+    transition turn_back: press, ?recalled -> pincer {
+      on enter(siege_force, ambush_zone);
+      when alive(raid_force);
+      priority 10;
+    }
+    transition confirm: ambush, ?relief_done -> won {
+      when ((alive(besieged_base) and defeated(siege_force)) and not (destroyed(besieged_base)));
+      priority 10;
+    }
+    transition confirm_pincer: pincer, ?relief_done -> won {
+      when ((alive(besieged_base) and defeated(siege_force)) and not (destroyed(besieged_base)));
+      priority 9;
+    }
+    transition lose: failure_watch -> lost {
+      when destroyed(besieged_base);
+      priority 0;
+    }
+  }
+  binding sc2 {
+    raid_force = unit_group(owner=1, unit_type="Stalker", count=8, spawn=point_xy(20, 58));
+    ambush_force = unit_group(owner=1, composition=[unit(unit_type="Zealot", count=8), unit(unit_type="Immortal", count=3)], spawn=point_xy(14, 30));
+    besieged_base = unit(owner=1, unit_type="Nexus", at=point_xy(58.5, 14.5));
+    siege_force = unit_group(owner=2, composition=[unit(unit_type="Roach", count=10), unit(unit_type="Zergling", count=16)], spawn=point_xy(47, 17));
+    enemy_home = unit(owner=2, unit_type="Hatchery", at=point_xy(60.5, 50.5));
+    enemy_home_zone = circle(center=point_xy(60.5, 50.5), radius=8);
+    ambush_zone = circle(center=point_xy(44, 33), radius=5);
+    __setup__ = setup(terminal_policy="first_wins");
+  }
+}

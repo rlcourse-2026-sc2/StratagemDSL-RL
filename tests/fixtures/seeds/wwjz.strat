@@ -1,0 +1,65 @@
+strategy wwjz {
+  world {
+    force relief_force { side = ally; role = relief; }
+    force enemy_siege_force { side = enemy; role = siege; }
+    asset besieged_base { side = ally; role = protected; }
+    asset enemy_home { side = enemy; role = critical; }
+    region enemy_home_zone { role = threat_trigger; }
+    region interception_zone { role = exploit; }
+  }
+  initial {
+    alive(relief_force); alive(enemy_siege_force); alive(besieged_base); alive(enemy_home);
+    targeting(enemy_siege_force, besieged_base);
+  }
+  intent {
+    pattern IndirectRelief {
+      relief_force = relief_force;
+      pressure_force = enemy_siege_force;
+      protected_target = besieged_base;
+      diversion_target = enemy_home;
+    }
+    primary base_relieved;
+    secondary alive(besieged_base);
+    success base_relieved and alive(besieged_base) and (destroyed(enemy_home) or defeated(enemy_siege_force));
+    failure destroyed(besieged_base);
+  }
+  semantics {
+    derive rear_threat_active = in_region(relief_force, enemy_home_zone);
+    derive base_relieved = not targeting(enemy_siege_force, besieged_base);
+  }
+  plan {
+    start [siege];
+    phase siege {
+      purpose "Enemy force is besieging our Nexus; direct relief is too slow.";
+      actors [enemy_siege_force]; focus [besieged_base]; do { attack(enemy_siege_force, besieged_base); }
+    }
+    phase threaten_home {
+      purpose "Threaten the enemy rear instead of returning directly.";
+      actors [relief_force]; focus [enemy_home]; do { move(relief_force, enemy_home_zone); }
+    }
+    phase force_redeploy {
+      purpose "Force the siege force to abandon the Nexus and retarget.";
+      actors [enemy_siege_force]; focus [enemy_home, relief_force];
+    }
+    phase intercept {
+      purpose "Exploit enemy redeployment and attack the returning force.";
+      actors [relief_force]; focus [enemy_siege_force]; do { attack(relief_force, enemy_siege_force); } terminal success;
+    }
+    transition choose_indirect_relief: siege -> threaten_home { when true; priority 10; }
+    transition rear_threat_causes_retarget: threaten_home -> force_redeploy {
+      on enter(relief_force, enemy_home_zone); when alive(besieged_base);
+      do { retarget(enemy_siege_force, relief_force); } priority 10;
+    }
+    transition redeployment_opens_window: force_redeploy -> intercept {
+      when true; priority 10;
+    }
+  }
+  binding sc2 {
+    relief_force = unit_group(owner=1, unit_type="Zealot", count=7, spawn=point_id(1457691274));
+    enemy_siege_force = unit_group(owner=2, composition=[unit(unit_type="Hellion", count=8), unit(unit_type="Marine", count=6)], spawn=point_id(1132184898));
+    besieged_base = unit(owner=1, unit_type="Nexus", at=point_id(485533860));
+    enemy_home = unit(owner=2, unit_type="CommandCenter", at=point_id(1597154638));
+    enemy_home_zone = circle(center=point_id(1597154638), radius=5);
+    interception_zone = circle(center=point_id(1597154638), radius=7);
+  }
+}

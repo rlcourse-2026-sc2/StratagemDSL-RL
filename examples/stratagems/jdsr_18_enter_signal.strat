@@ -1,0 +1,111 @@
+strategy jdsr_18_enter_signal {
+  world {
+    force controller_force {
+      side = "ally";
+      role = "controller";
+    }
+    force allied_main_force {
+      side = "ally";
+      role = "support";
+    }
+    force borrowed_weapon {
+      side = "enemy";
+      role = "high_value_weapon";
+    }
+    force enemy_support_force {
+      side = "enemy";
+      role = "support";
+    }
+    region review_objective {
+      role = "corpus_gate";
+    }
+    region review_rally {
+      role = "corpus_gate";
+    }
+  }
+  initial { alive(controller_force); alive(allied_main_force); alive(borrowed_weapon); alive(enemy_support_force); }
+  intent {
+    pattern BorrowedWeapon;
+    primary defeated(enemy_support_force);
+    secondary alive(controller_force);
+    success (defeated(enemy_support_force) and defeated(borrowed_weapon));
+    failure (not (alive(controller_force)) and not (alive(allied_main_force)));
+  }
+  plan {
+    start [enemy_engagement, review_failure_watch];
+    phase enemy_engagement {
+      purpose "The Stalkers and Colossus actively pressure the allied Roach/Infestor force.";
+      actors [borrowed_weapon, enemy_support_force];
+      focus [controller_force, allied_main_force];
+      do parallel { attack(borrowed_weapon, allied_main_force); attack(enemy_support_force, allied_main_force); }
+    }
+    phase capture_weapon {
+      purpose "Use Neural Parasite to take temporary control of the enemy Colossus.";
+      actors [controller_force];
+      focus [borrowed_weapon];
+      do { control(controller_force, borrowed_weapon); }
+    }
+    phase redirect_power {
+      purpose "Redirect the borrowed Colossus firepower against its original side.";
+      actors [allied_main_force];
+      focus [enemy_support_force];
+      do { attack(allied_main_force, enemy_support_force); }
+    }
+    phase finish_enemy {
+      purpose "Finish the remaining enemy after the power balance is reversed.";
+      actors [allied_main_force];
+      focus [borrowed_weapon, enemy_support_force];
+    }
+    phase confirmed_finish_enemy {
+      purpose "\u786e\u8ba4\u53ef\u89c2\u6d4b\u76ee\u6807\u8fbe\u6210\uff0c\u9501\u5b9a\u8ba1\u5212\u6210\u529f\u3002";
+      actors [allied_main_force];
+      terminal success;
+    }
+    phase review_gate {
+      purpose "\u5165\u533a\u4fe1\u53f7";
+      actors [controller_force];
+    }
+    phase review_failure_watch {
+      purpose "\u72ec\u7acb\u68c0\u67e5intent.failure\uff1b\u5931\u8d25\u540e\u505c\u6b62\u6240\u6709\u8ba1\u5212\u5206\u652f\u3002";
+    }
+    phase review_failure {
+      purpose "\u663e\u5f0f\u5931\u8d25\u7ec8\u70b9\u3002";
+      terminal failure;
+    }
+    transition seek_control: enemy_engagement -> review_gate {
+      when (alive(controller_force) and not ((not (alive(controller_force)) and not (alive(allied_main_force)))));
+      priority 10;
+    }
+    transition redirect_after_control: capture_weapon -> redirect_power {
+      on ability_cast(controller_force, "NeuralParasite");
+      when (alive(controller_force) and not ((not (alive(controller_force)) and not (alive(allied_main_force)))));
+      priority 10;
+    }
+    transition finish: redirect_power -> finish_enemy {
+      when (alive(allied_main_force) and not ((not (alive(controller_force)) and not (alive(allied_main_force)))));
+      priority 10;
+    }
+    transition confirm_finish_enemy: finish_enemy -> confirmed_finish_enemy {
+      when ((defeated(enemy_support_force) and defeated(borrowed_weapon)) and not ((not (alive(controller_force)) and not (alive(allied_main_force)))));
+      priority 10;
+    }
+    transition review_release: review_gate -> capture_weapon {
+      on enter(controller_force, review_objective);
+      when ((alive(controller_force) and in_region(controller_force, review_objective)) and not ((not (alive(controller_force)) and not (alive(allied_main_force)))));
+      priority 10;
+    }
+    transition review_failure_detected: review_failure_watch -> review_failure {
+      when (not (alive(controller_force)) and not (alive(allied_main_force)));
+      priority 0;
+    }
+  }
+  binding sc2 {
+    controller_force = unit_group(owner=1, unit_type="Infestor", count=1, spawn=point_id(172712063));
+    allied_main_force = unit_group(owner=1, unit_type="Roach", count=4, spawn=point_id(172712063));
+    borrowed_weapon = unit_group(owner=2, unit_type="Colossus", count=1, spawn=point_id(1043450641));
+    enemy_support_force = unit_group(owner=2, unit_type="Stalker", count=3, spawn=point_id(963254755));
+    __setup__ = setup(terminal_policy="first_wins");
+    review_objective = circle(center=point_id(1043450641), radius=6);
+    review_rally = circle(center=point_id(172712063), radius=5);
+  }
+}

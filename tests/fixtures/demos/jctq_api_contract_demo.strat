@@ -1,0 +1,106 @@
+strategy jctq_api_contract_demo {
+  world {
+    force escape_force {
+      side = "ally";
+      role = "escaping_force";
+    }
+    force enemy_sentries {
+      side = "enemy";
+      role = "exit_blocker";
+    }
+    force enemy_stalkers {
+      side = "enemy";
+      role = "pursuit";
+    }
+    force enemy_observer {
+      side = "enemy";
+      role = "detection_support";
+    }
+    region exit_zone {
+      role = "chokepoint";
+    }
+    region review_safe_exit {
+      role = "corpus_gate";
+    }
+    region review_rally {
+      role = "corpus_gate";
+    }
+  }
+  initial { alive(escape_force); alive(enemy_sentries); alive(enemy_stalkers); alive(enemy_observer); }
+  intent {
+    pattern EscapeConcealment;
+    primary alive(escape_force);
+    success (alive(escape_force) and (count_in(escape_force, review_safe_exit) >= 2));
+    failure not (alive(escape_force));
+  }
+  plan {
+    start [under_attack, review_failure_watch];
+    phase under_attack {
+      purpose "Sentries, Stalkers and Observer maintain pressure on the encircled Roaches.";
+      actors [enemy_sentries, enemy_stalkers, enemy_observer];
+      focus [escape_force, exit_zone];
+      do parallel { attack(enemy_sentries, escape_force); attack(enemy_stalkers, escape_force); attack(enemy_observer, escape_force); }
+    }
+    phase exit_blocked {
+      purpose "When Roaches approach a center point of the exit, enemy Sentries cast Force Field.";
+      actors [enemy_sentries];
+      focus [exit_zone];
+      do { block(enemy_sentries, exit_zone); }
+    }
+    phase burrow_escape {
+      purpose "Use Burrow with Tunneling Claws to disengage and pass the blockade.";
+      actors [escape_force];
+      focus [exit_zone];
+      do { cast(escape_force, "Burrow"); }
+    }
+    phase confirmed_burrow_escape {
+      purpose "\u786e\u8ba4\u53ef\u89c2\u6d4b\u76ee\u6807\u8fbe\u6210\uff0c\u9501\u5b9a\u8ba1\u5212\u6210\u529f\u3002";
+      actors [escape_force];
+      terminal success;
+    }
+    phase review_gate {
+      purpose "\u53cc\u4fa7\u5b58\u6d3b\u6838\u5bf9";
+      actors [escape_force];
+    }
+    phase review_failure_watch {
+      purpose "\u72ec\u7acb\u68c0\u67e5intent.failure\uff1b\u5931\u8d25\u540e\u505c\u6b62\u6240\u6709\u8ba1\u5212\u5206\u652f\u3002";
+    }
+    phase review_failure {
+      purpose "\u663e\u5f0f\u5931\u8d25\u7ec8\u70b9\u3002";
+      terminal failure;
+    }
+    transition approach_exit: under_attack -> review_gate {
+      on enter(escape_force, exit_zone);
+      when ((center_passable(exit_zone) and path_connected(exit_zone, review_safe_exit)) and not (not (alive(escape_force))));
+      priority 10;
+    }
+    transition conceal_and_escape: exit_blocked -> burrow_escape {
+      on ability_cast(enemy_sentries, "ForceField");
+      when (alive(escape_force) and not (not (alive(escape_force))));
+      do parallel { attack(enemy_sentries, escape_force); attack(enemy_stalkers, escape_force); attack(enemy_observer, escape_force); }
+      priority 10;
+    }
+    transition confirm_burrow_escape: burrow_escape -> confirmed_burrow_escape {
+      when ((alive(escape_force) and (count_in(escape_force, review_safe_exit) >= 2)) and not (not (alive(escape_force))));
+      priority 10;
+    }
+    transition review_release: review_gate -> exit_blocked {
+      when ((alive(escape_force) and alive(enemy_stalkers)) and not (not (alive(escape_force))));
+      priority 10;
+    }
+    transition review_failure_detected: review_failure_watch -> review_failure {
+      when not (alive(escape_force));
+      priority 0;
+    }
+  }
+  binding sc2 {
+    escape_force = unit_group(owner=1, unit_type="Roach", count=4, spawn=point_xy(40.5964, 40.292));
+    enemy_sentries = unit_group(owner=2, unit_type="Sentry", count=2, spawn=point_xy(41.1052, 35.2421));
+    enemy_stalkers = unit_group(owner=2, composition=[unit(unit_type="Stalker", count=3, at=point_xy(36.2512, 36.768)), unit(unit_type="Stalker", count=3, at=point_xy(46.0905, 35.8381))], spawn=point_xy(36.2512, 36.768));
+    enemy_observer = unit_group(owner=2, unit_type="Observer", count=1, spawn=point_xy(41.1052, 35.2421));
+    exit_zone = circle(center=point_xy(43.933, 44.1748), radius=4);
+    __setup__ = setup(upgrades=[upgrade(player=1, name="TunnelingClaws", level=1)], terminal_policy="first_wins");
+    review_safe_exit = circle(center=point_xy(50.45, 51.759), radius=4);
+    review_rally = circle(center=point_xy(40.5964, 40.292), radius=5);
+  }
+}

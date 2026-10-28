@@ -1,0 +1,103 @@
+// 关门捉贼 (Trap) as a Petri net, on assets/base_maps/swct_te.SC2Map.
+//
+//   inserted   AND-split: one arrival puts tokens on BOTH lure and ramp_guard
+//   seal       the ramp guard turns into a `sealed` signal token
+//   spring     AND-join without a join node: lure + ?sealed (read) and
+//              !aborted (inhibitor: the defenders have not slipped out)
+//   give_up    the competing branch once `aborted` is marked
+strategy swct_fork_trap {
+  world {
+    force transport_force { side = "ally"; role = "insertion"; }
+    force control_force { side = "ally"; role = "high_ground_control"; }
+    force enemy_defenders { side = "enemy"; role = "mobile_defense"; }
+    asset enemy_home { side = "enemy"; role = "lure_target"; }
+    region home_threat_zone { role = "lure_zone"; }
+    region ramp_block_zone { role = "closure_zone"; }
+  }
+  initial { alive(transport_force); alive(control_force); alive(enemy_defenders); alive(enemy_home); }
+  intent {
+    pattern Trap {
+      enemy = enemy_defenders;
+      lure = home_threat_zone;
+      way_out = ramp_block_zone;
+      trap_force = control_force;
+      objective = enemy_defenders;
+    }
+    primary destroyed(enemy_home);
+    secondary alive(control_force);
+    success (destroyed(enemy_home) or defeated(enemy_defenders));
+    failure not (alive(control_force));
+  }
+  plan {
+    start [insert_force, escape_watch, failure_watch];
+    place sealed { purpose "Force Field holds the ramp"; capacity 1; }
+    place aborted { purpose "the defenders left the trap before it closed"; capacity 1; }
+    phase insert_force {
+      purpose "Use Warp Prism transport to place Sentries on the enemy high ground.";
+      actors [transport_force, control_force];
+      focus [home_threat_zone];
+      do { move(transport_force, home_threat_zone); }
+    }
+    phase lure {
+      purpose "Sentries threaten the Hatchery so the Zerglings come home.";
+      actors [control_force];
+      focus [enemy_home];
+      do { attack(control_force, enemy_home); }
+    }
+    phase ramp_guard {
+      purpose "One Sentry waits at the ramp for the returning defenders.";
+      actors [control_force];
+      focus [ramp_block_zone];
+    }
+    phase escape_watch { purpose "Watch for defenders slipping out before the ramp is sealed."; }
+    phase assault_home {
+      purpose "Exploit the closed ramp and destroy the trapped defenders or the Hatchery.";
+      actors [control_force];
+      focus [enemy_defenders, enemy_home];
+      do { attack(control_force, enemy_defenders); }
+    }
+    phase won { purpose "Trap closed and objective met."; actors [control_force]; terminal success; }
+    phase withdrawn { purpose "The trap failed to close; the Sentries pull out."; actors [control_force]; terminal failure; }
+    phase failure_watch { purpose "Independently watch intent.failure."; }
+    phase lost { purpose "Explicit failure terminal."; terminal failure; }
+    transition inserted: insert_force -> lure, ramp_guard {
+      on enter(transport_force, home_threat_zone);
+      when alive(control_force);
+      priority 10;
+    }
+    transition seal: ramp_guard -> sealed {
+      on enter(enemy_defenders, home_threat_zone);
+      do { block(control_force, ramp_block_zone); }
+      priority 10;
+    }
+    transition escape: escape_watch, !sealed -> aborted {
+      on leave(enemy_defenders, home_threat_zone);
+      priority 10;
+    }
+    transition spring: lure, ?sealed, !aborted -> assault_home {
+      when (alive(control_force) and not (not (alive(control_force))));
+      priority 10;
+    }
+    transition give_up: lure, aborted -> withdrawn {
+      when alive(control_force);
+      priority 11;
+    }
+    transition confirm: assault_home -> won {
+      when ((destroyed(enemy_home) or defeated(enemy_defenders)) and not (not (alive(control_force))));
+      priority 10;
+    }
+    transition lose: failure_watch -> lost {
+      when not (alive(control_force));
+      priority 0;
+    }
+  }
+  binding sc2 {
+    transport_force = unit_group(owner=1, unit_type="WarpPrism", count=1, spawn=point_id(1843575778));
+    control_force = unit_group(owner=1, unit_type="Sentry", count=4, spawn=point_id(933802495));
+    enemy_defenders = unit_group(owner=2, unit_type="Zergling", count=10, spawn=point_id(232630513));
+    enemy_home = unit(owner=2, unit_type="Hatchery", at=point_id(376668369));
+    home_threat_zone = circle(center=point_id(376668369), radius=7);
+    ramp_block_zone = circle(center=point_id(376668369), radius=2);
+    __setup__ = setup(terminal_policy="first_wins", behaviors=[remove_behavior(asset="enemy_home", name="SpawnLarva"), remove_behavior(asset="enemy_home", name="ZergBuildingDies9"), remove_behavior(asset="enemy_home", name="makeCreep8x6")]);
+  }
+}

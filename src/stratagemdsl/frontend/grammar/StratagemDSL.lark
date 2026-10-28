@@ -1,0 +1,189 @@
+// StratagemDSL v0.6, Lark (LALR) grammar. Mirrors StratagemDSL.g4 rule for rule.
+//
+// Naming contract with the .g4 (checked by tests/l1_frontend/test_grammar_names.py):
+//   * every rule has the .g4 rule's name in snake_case (strategyDecl -> strategy_decl,
+//     worldSection -> world_section, sumExpr -> sum_expr), and vice versa;
+//     `start` is Lark's entry point only and collapses to `document`;
+//   * where alternatives build different kinds of value, every alternative is
+//     named, and the names match the .g4 labels (`-> force_decl` = `# ForceDecl`);
+//   * the expression chain (expr ... atom) is unnamed on both sides and keeps its
+//     operator tokens, so both parse trees have the same nodes there.
+
+?start: document
+
+document: strategy_decl
+
+strategy_decl: "strategy" ID "{" world_section initial_section? intent_section semantics_section? plan_section binding_section? "}"
+
+// ----------------------------------------------------------------- world
+world_section: "world" "{" entity_decl* "}"
+entity_decl: "force" ID entity_body? ";"?   -> force_decl
+           | "asset" ID entity_body? ";"?   -> asset_decl
+           | "region" ID entity_body? ";"?  -> region_decl
+           | "route" ID entity_body? ";"?   -> route_decl
+entity_body: "{" property_stmt* "}"
+property_stmt: soft_id "=" property_value ";"
+
+property_value: ESCAPED_STRING              -> str_lit
+              | NUMBER                      -> num_lit
+              | PROP_NUMBER                 -> num_lit
+              | "true"                      -> true_lit
+              | "false"                     -> false_lit
+              | soft_id                     -> name_lit
+              | list_value                  -> list_lit
+list_value: "[" [property_value ("," property_value)*] "]"
+
+// ------------------------------------------------- initial state, intent
+initial_section: "initial" "{" expr_stmt* "}"
+expr_stmt: expr ";"
+
+intent_section: "intent" "{" pattern_stmt? primary_stmt secondary_stmt? success_stmt failure_stmt "}"
+pattern_stmt: "pattern" ID ";"                         -> pattern_simple
+            | "pattern" ID "{" pattern_role_binding* "}" -> pattern_bound
+pattern_role_binding: ID "=" ID ";"
+primary_stmt: "primary" expr ";"
+secondary_stmt: "secondary" expr ";"
+success_stmt: "success" expr ";"
+failure_stmt: "failure" expr ";"
+
+semantics_section: "semantics" "{" derived_decl* "}"
+derived_decl: "derive" ID "=" expr ";"
+
+// ------------------------------------------------------------------ plan
+plan_section: "plan" "{" start_stmt plan_node+ transition_decl* "}"
+start_stmt: "start" name_list ";"
+plan_node: phase_decl | join_decl | place_decl
+
+phase_decl: "phase" ID "{" purpose_stmt repeatable_stmt? actors_stmt? focus_stmt? entry_stmt? do_stmt? invariant_stmt? exit_stmt? terminal_stmt? "}"
+purpose_stmt: "purpose" ESCAPED_STRING ";"
+repeatable_stmt: "repeatable" ";"
+actors_stmt: "actors" name_list ";"
+focus_stmt: "focus" name_list ";"
+entry_stmt: "entry" expr ";"
+do_stmt: "do" action_block
+invariant_stmt: "invariant" expr ";"
+exit_stmt: "exit" expr ";"
+terminal_stmt: "terminal" terminal_kind ";"
+terminal_kind: "success"                    -> terminal_success
+             | "failure"                    -> terminal_failure
+
+join_decl: "join" ID join_policy ";"
+join_policy: "all"                          -> join_all
+           | "any"                          -> join_any
+           | "atleast" "(" INT ")"          -> join_atleast
+
+// v0.6 Petri-net places: a token store with no actions.
+place_decl: "place" ID "{" purpose_stmt? place_tokens_stmt? capacity_stmt? "}"
+place_tokens_stmt: "initial" INT ";"
+capacity_stmt: "capacity" INT ";"
+
+// v0.6 arcs: `a -> b` is the single-arc case of `a, b*2, ?c, !d -> e, f`.
+transition_decl: "transition" ID ":" arc_list "->" arc_list "{" on_stmt? when_stmt? do_stmt? "priority" INT ";" "}"
+arc_list: arc ("," arc)*
+arc: ID                                     -> arc_normal
+   | ID "*" INT                             -> arc_weighted
+   | "?" ID                                 -> arc_read
+   | "?" ID "*" INT                         -> arc_read_weighted
+   | "!" ID                                 -> arc_inhibit
+   | "!" ID "*" INT                         -> arc_inhibit_weighted
+on_stmt: "on" call_expr ";"
+when_stmt: "when" expr ";"
+
+action_block: "{" action_stmt* "}"            -> sequential_block
+            | "sequence" "{" action_stmt* "}" -> sequential_block
+            | "parallel" "{" action_stmt* "}" -> parallel_block
+action_stmt: call_expr ";"
+
+name_list: "[" [ID ("," ID)*] "]"
+
+// --------------------------------------------------------------- binding
+binding_section: "binding" ID "{" binding_stmt* "}"
+binding_stmt: ID "=" binding_expr ";"
+binding_expr: binding_ctor "(" [binding_arg_list] ")"     -> binding_call
+            | ESCAPED_STRING                             -> binding_string
+            | NUMBER                                     -> binding_number
+            | PROP_NUMBER                                -> binding_number
+            | "true"                                     -> binding_true
+            | "false"                                    -> binding_false
+            | soft_id                                    -> binding_name
+            | "[" [binding_expr ("," binding_expr)*] "]" -> binding_list
+binding_arg_list: binding_arg ("," binding_arg)*
+binding_arg: soft_id "=" binding_expr                    -> named_binding_arg
+           | binding_expr                                -> positional_binding_arg
+!binding_ctor: ID | "route"
+
+// Same list as the .g4 softId. true/false/not/and/or/implies stay operators
+// and value literals, so `role = true` is a boolean and `not = true` fails.
+// `!` keeps the keyword token. Lark otherwise drops string literals from the tree.
+!soft_id: ID
+        | "strategy" | "world" | "initial" | "intent" | "semantics" | "derive" | "pattern"
+        | "primary" | "secondary" | "success" | "failure"
+        | "force" | "asset" | "region" | "route"
+        | "plan" | "start" | "phase" | "join" | "purpose" | "actors" | "focus" | "entry" | "do"
+        | "invariant" | "exit" | "terminal" | "transition" | "on" | "when" | "priority"
+        | "all" | "any" | "atleast" | "sequence" | "parallel"
+        | "binding" | "place" | "capacity" | "repeatable"
+
+// ----------------------------------------------------------- expressions
+// The chain is written without `?` so Lark keeps one node per rule, as ANTLR
+// does; operators are named terminals (the .g4 token names) so they stay in the tree.
+expr: implication
+implication: or_expr
+           | or_expr IMPLIES implication
+or_expr: and_expr
+       | or_expr OR and_expr
+and_expr: comparison
+        | and_expr AND comparison
+comparison: sum_expr
+          | sum_expr (LT | LE | GT | GE | EQ | NEQ) sum_expr
+sum_expr: product_expr
+        | sum_expr (PLUS | MINUS) product_expr
+product_expr: unary_expr
+            | product_expr (MUL | DIV) unary_expr
+unary_expr: NOT unary_expr
+          | MINUS unary_expr
+          | atom
+atom: "(" expr ")"
+    | call_expr
+    | literal
+    | ID
+
+call_expr: ID "(" [argument_list] ")"
+argument_list: expr ("," expr)*
+
+literal: ESCAPED_STRING                     -> string_literal
+       | NUMBER                             -> number_literal
+       | "true"                             -> true_literal
+       | "false"                            -> false_literal
+
+// ------------------------------------------------------------- terminals
+IMPLIES: "implies"
+OR: "or"
+AND: "and"
+NOT: "not"
+EQ: "=="
+NEQ: "!="
+LE: "<="
+GE: ">="
+LT: "<"
+GT: ">"
+PLUS: "+"
+MINUS: "-"
+MUL: "*"
+DIV: "/"
+
+// Strict names exclude every ANTLR keyword. `\b` lets phase_1 and only through.
+// soft_id re-accepts structural keywords at softId sites.
+ID: /(?!(?:strategy|world|initial|intent|semantics|derive|pattern|primary|secondary|success|failure|force|asset|region|route|plan|start|phase|join|purpose|actors|focus|entry|do|invariant|exit|terminal|transition|on|when|priority|all|any|atleast|sequence|parallel|binding|place|capacity|repeatable|true|false|not|and|or|implies)\b)[A-Za-z_][A-Za-z0-9_]*/
+
+// ANTLR NUMBER: digits, and a dot only when digits follow it.
+NUMBER: /[0-9]+(\.[0-9]+)?/
+// Property and binding values only. The minus is part of the token, so `- 3` fails.
+PROP_NUMBER: /-[0-9]+(\.[0-9]+)?/
+
+%import common.ESCAPED_STRING
+%import common.INT
+%import common.WS
+%ignore WS
+%ignore /\/\/[^\n]*/
+%ignore /(?s:\/\*.*?\*\/)/

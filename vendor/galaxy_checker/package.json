@@ -1,0 +1,8 @@
+{
+  "name": "stratagemdsl-galaxy-checker",
+  "private": true,
+  "description": "Open-source Galaxy static checker for StratagemDSL layer 5 (plaxtony, MIT, https://github.com/Talv/plaxtony)",
+  "dependencies": {
+    "plaxtony": "1.10.5"
+  }
+}

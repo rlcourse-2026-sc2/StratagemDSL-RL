@@ -1,0 +1,62 @@
+strategy jctq {
+  world {
+    force escape_force { side = ally; role = escaping_force; }
+    force enemy_sentries { side = enemy; role = exit_blocker; }
+    force enemy_stalkers { side = enemy; role = pursuit; }
+    force enemy_observer { side = enemy; role = detection_support; }
+    region exit_zone { role = chokepoint; }
+  }
+  initial { alive(escape_force); alive(enemy_sentries); alive(enemy_stalkers); alive(enemy_observer); }
+  intent {
+    pattern EscapeConcealment;
+    primary alive(escape_force);
+    success alive(escape_force);
+    failure not alive(escape_force);
+  }
+  plan {
+    start [under_attack];
+    phase under_attack {
+      purpose "Sentries, Stalkers and Observer maintain pressure on the encircled Roaches.";
+      actors [enemy_sentries, enemy_stalkers, enemy_observer]; focus [escape_force, exit_zone];
+      do parallel {
+        attack(enemy_sentries, escape_force);
+        attack(enemy_stalkers, escape_force);
+        attack(enemy_observer, escape_force);
+      }
+    }
+    phase exit_blocked {
+      purpose "When Roaches approach the only passable exit, enemy Sentries cast Force Field.";
+      actors [enemy_sentries]; focus [exit_zone];
+      do { block(enemy_sentries, exit_zone); }
+    }
+    phase burrow_escape {
+      purpose "Use Burrow with Tunneling Claws to disengage and pass the blockade.";
+      actors [escape_force]; focus [exit_zone];
+      do { cast(escape_force, "Burrow"); }
+      terminal success;
+    }
+    transition approach_exit: under_attack -> exit_blocked {
+      on enter(escape_force, exit_zone); when path_passable(exit_zone); priority 10;
+    }
+    transition conceal_and_escape: exit_blocked -> burrow_escape {
+      on ability_cast(enemy_sentries, "ForceField"); when alive(escape_force);
+      do parallel {
+        attack(enemy_sentries, escape_force);
+        attack(enemy_stalkers, escape_force);
+        attack(enemy_observer, escape_force);
+      }
+      priority 10;
+    }
+  }
+  binding sc2 {
+    escape_force = unit_group(owner=1, unit_type="Roach", count=4, spawn=point_id(1843575778));
+    enemy_sentries = unit_group(owner=2, unit_type="Sentry", count=2, spawn=point_id(933802495));
+    enemy_stalkers = unit_group(owner=2, composition=[
+      unit(unit_type="Stalker", count=3, at=point_id(1064492692)),
+      unit(unit_type="Stalker", count=3, at=point_id(376668369))
+    ], spawn=point_id(1064492692));
+    enemy_observer = unit_group(owner=2, unit_type="Observer", count=1, spawn=point_id(933802495));
+    exit_zone = circle(center=point_id(853802940), radius=4);
+    __setup__ = setup(upgrades=[upgrade(player=1, name="TunnelingClaws", level=1)]);
+  }
+}

@@ -1,0 +1,106 @@
+strategy adcc_18_enter_signal {
+  world {
+    force allied_force {
+      side = "ally";
+      role = "covert_strike";
+    }
+    asset allied_home {
+      side = "ally";
+      role = "protected";
+    }
+    force enemy_blockers {
+      side = "enemy";
+      role = "frontal_blocker";
+    }
+    asset enemy_home {
+      side = "enemy";
+      role = "critical";
+    }
+    region enemy_rear_zone {
+      role = "rear_objective";
+    }
+    region review_rally {
+      role = "corpus_gate";
+    }
+  }
+  initial { alive(allied_force); alive(allied_home); alive(enemy_blockers); alive(enemy_home); }
+  intent {
+    pattern CovertBypass {
+      covert_force = allied_force;
+      blocker = enemy_blockers;
+      rear_region = enemy_rear_zone;
+      target = enemy_home;
+    }
+    primary destroyed(enemy_home);
+    secondary alive(allied_force);
+    success destroyed(enemy_home);
+    failure (not (alive(allied_force)) or destroyed(allied_home));
+  }
+  plan {
+    start [incoming_pressure, review_failure_watch];
+    phase incoming_pressure {
+      purpose "Enemy anti-light force pressures the Hatchery and makes frontal combat unattractive.";
+      actors [enemy_blockers];
+      focus [allied_home];
+      do { attack(enemy_blockers, allied_home); }
+    }
+    phase covert_bypass {
+      purpose "Use Burrow or an alternate route to bypass the frontal blocker.";
+      actors [allied_force];
+      focus [enemy_rear_zone];
+      do { cast(allied_force, "Burrow"); move(allied_force, enemy_rear_zone); }
+    }
+    phase rear_assault {
+      purpose "Attack the enemy rear Command Center after bypassing the blocker.";
+      actors [allied_force];
+      focus [enemy_home];
+      do { attack(allied_force, enemy_home); }
+    }
+    phase confirmed_rear_assault {
+      purpose "\u786e\u8ba4\u53ef\u89c2\u6d4b\u76ee\u6807\u8fbe\u6210\uff0c\u9501\u5b9a\u8ba1\u5212\u6210\u529f\u3002";
+      actors [allied_force];
+      terminal success;
+    }
+    phase review_gate {
+      purpose "\u5165\u533a\u4fe1\u53f7";
+      actors [allied_force];
+    }
+    phase review_failure_watch {
+      purpose "\u72ec\u7acb\u68c0\u67e5intent.failure\uff1b\u5931\u8d25\u540e\u505c\u6b62\u6240\u6709\u8ba1\u5212\u5206\u652f\u3002";
+    }
+    phase review_failure {
+      purpose "\u663e\u5f0f\u5931\u8d25\u7ec8\u70b9\u3002";
+      terminal failure;
+    }
+    transition choose_indirect_route: incoming_pressure -> review_gate {
+      when (alive(allied_force) and not ((not (alive(allied_force)) or destroyed(allied_home))));
+      priority 10;
+    }
+    transition reach_enemy_rear: covert_bypass -> rear_assault {
+      when ((alive(allied_force) and in_region(allied_force, enemy_rear_zone)) and not ((not (alive(allied_force)) or destroyed(allied_home))));
+      priority 10;
+    }
+    transition confirm_rear_assault: rear_assault -> confirmed_rear_assault {
+      when (destroyed(enemy_home) and not ((not (alive(allied_force)) or destroyed(allied_home))));
+      priority 10;
+    }
+    transition review_release: review_gate -> covert_bypass {
+      on enter(allied_force, enemy_rear_zone);
+      when ((alive(allied_force) and in_region(allied_force, enemy_rear_zone)) and not ((not (alive(allied_force)) or destroyed(allied_home))));
+      priority 10;
+    }
+    transition review_failure_detected: review_failure_watch -> review_failure {
+      when (not (alive(allied_force)) or destroyed(allied_home));
+      priority 0;
+    }
+  }
+  binding sc2 {
+    allied_force = unit_group(owner=1, unit_type="Zergling", count=16, spawn=point_id(1532430748));
+    allied_home = unit(owner=1, unit_type="Hatchery", at=point_id(1963276538));
+    enemy_blockers = unit_group(owner=2, unit_type="HellionTank", count=4, spawn=point_id(9034952));
+    enemy_home = unit(owner=2, unit_type="CommandCenter", at=point_id(1714395741));
+    enemy_rear_zone = circle(center=point_id(1714395741), radius=6);
+    __setup__ = setup(tech=[tech_requirements(player=1, enabled=false)], terminal_policy="first_wins");
+    review_rally = circle(center=point_id(1532430748), radius=5);
+  }
+}

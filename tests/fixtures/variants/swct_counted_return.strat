@@ -1,0 +1,31 @@
+strategy swct_counted_return {
+  world {
+    force transport_force { side = ally; role = insertion; }
+    force control_force { side = ally; role = high_ground_control; }
+    force enemy_defenders { side = enemy; role = mobile_defense; }
+    asset enemy_home { side = enemy; role = lure_target; }
+    region home_zone { role = lure_zone; }
+    region ramp_zone { role = closure_zone; }
+  }
+  initial { alive(transport_force); alive(control_force); alive(enemy_defenders); alive(enemy_home); }
+  intent { pattern Trap { enemy = enemy_defenders; lure = enemy_home; way_out = ramp_zone; trap_force = control_force; objective = enemy_defenders; } primary defeated(enemy_defenders); secondary alive(control_force); success defeated(enemy_defenders) or destroyed(enemy_home); failure not alive(control_force); }
+  semantics { derive credible_insertion = count_in(control_force, home_zone) >= 3; }
+  plan {
+    start [insert];
+    phase insert { purpose "Insert enough Sentries to make the Hatchery threat credible."; actors [transport_force, control_force]; focus [home_zone]; do { transport(transport_force, control_force, home_zone); } }
+    phase enemy_returns { purpose "Three or more inserted units trigger a full Zergling return."; actors [enemy_defenders]; focus [enemy_home]; }
+    phase close_ramp { purpose "After the defenders commit, the player seals the ramp with Force Field."; actors [control_force]; focus [ramp_zone]; do { block(control_force, ramp_zone); } }
+    phase assault { purpose "Exploit the mobility denial to attack the returning defenders or Hatchery."; actors [control_force]; focus [enemy_defenders, enemy_home]; do { attack(control_force, enemy_defenders); } terminal success; }
+    transition credible_threat: insert -> enemy_returns { on enter(control_force, home_zone); when credible_insertion; do { retarget(enemy_defenders, enemy_home); } priority 10; }
+    transition commit: enemy_returns -> close_ramp { on enter(enemy_defenders, home_zone); priority 10; }
+    transition closure: close_ramp -> assault { when alive(control_force); priority 10; }
+  }
+  binding sc2 {
+    transport_force = unit_group(owner=1, unit_type="WarpPrism", count=1, spawn=point_id(1843575778));
+    control_force = unit_group(owner=1, unit_type="Sentry", count=5, spawn=point_id(933802495));
+    enemy_defenders = unit_group(owner=2, unit_type="Zergling", count=12, spawn=point_id(232630513));
+    enemy_home = unit(owner=2, unit_type="Hatchery", at=point_id(376668369));
+    home_zone = circle(center=point_id(376668369), radius=7);
+    ramp_zone = circle(center=point_id(376668385), radius=3);
+  }
+}

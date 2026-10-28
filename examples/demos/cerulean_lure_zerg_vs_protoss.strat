@@ -1,0 +1,116 @@
+// 调虎离山 (Lure the tiger out of the mountain) on Cerulean Fall LE, Zerg vs Protoss.
+//
+// Map (72 x 72, cliff levels from t3SyncCliffLevel):
+//   Zerg main      south-west high ground (level 3) around (16, 18)
+//   Protoss main   north-east plateau (level 2) around (44, 61)
+//   east ramp      (53, 45) plateau -> middle low ground (level 1)
+//   west ramp      (34, 52) plateau -> middle low ground
+// The Zergling bait shows itself at the top of the east ramp; the Protoss
+// guard leaves the Nexus and chases it down to the far east low ground.
+// The Roach strike force waits below the west ramp and only climbs once the
+// guard has been drawn off, then attacks the undefended Nexus.
+strategy CeruleanLureZergVsProtoss {
+  world {
+    force zergling_bait { side = ally; role = "bait"; }
+    force roach_strike { side = ally; role = "strike"; }
+    asset zerg_hatchery { side = ally; role = "protected"; }
+    force protoss_guard { side = enemy; role = "base_guard"; }
+    asset protoss_nexus { side = enemy; role = "critical"; }
+    region east_lure_zone { role = "lure"; }
+    region decoy_ground { role = "redirect"; }
+    region west_staging { role = "staging"; }
+  }
+  initial { alive(zergling_bait); alive(roach_strike); alive(zerg_hatchery); alive(protoss_guard); alive(protoss_nexus); }
+  intent {
+    pattern Lure {
+      bait = zergling_bait;
+      enemy = protoss_guard;
+      stronghold = protoss_nexus;
+      lure_zone = east_lure_zone;
+      relocation_target = decoy_ground;
+      strike_force = roach_strike;
+    }
+    primary destroyed(protoss_nexus);
+    secondary alive(zerg_hatchery);
+    success destroyed(protoss_nexus);
+    failure (destroyed(zerg_hatchery) or defeated(roach_strike));
+  }
+  plan {
+    start [deploy, failure_watch];
+    phase deploy {
+      purpose "Roaches hide below the west ramp while the Zerglings run to the top of the east ramp.";
+      actors [zergling_bait, roach_strike];
+      focus [protoss_guard, protoss_nexus];
+      do parallel { move(roach_strike, west_staging); move(zergling_bait, east_lure_zone); }
+    }
+    phase guard_pulled {
+      purpose "The Protoss guard chases the bait down the east ramp; the bait keeps running east.";
+      actors [zergling_bait, protoss_guard];
+      focus [decoy_ground];
+      do { move(zergling_bait, decoy_ground); }
+    }
+    phase strike {
+      purpose "With the guard far away, the Roaches climb the west ramp and attack the Nexus.";
+      actors [roach_strike];
+      focus [protoss_nexus];
+      do { attack(roach_strike, protoss_nexus); }
+    }
+    phase nexus_siege {
+      purpose "The guard is recalled once the Nexus is hit; the Roaches keep pressure on the Nexus.";
+      actors [roach_strike, protoss_guard];
+      focus [protoss_nexus];
+      do { attack(roach_strike, protoss_nexus); }
+    }
+    phase nexus_destroyed {
+      purpose "Nexus destroyed while the Hatchery and the strike force survive.";
+      actors [roach_strike];
+      terminal success;
+    }
+    phase failure_watch {
+      purpose "Independently watch for the loss of the Hatchery or the strike force.";
+    }
+    phase lure_failed {
+      purpose "Hatchery lost or Roaches wiped out; the plan has failed.";
+      terminal failure;
+    }
+    transition bait_spotted: deploy -> guard_pulled {
+      on enter(zergling_bait, east_lure_zone);
+      when (alive(protoss_guard) and alive(protoss_nexus) and (distance(protoss_guard, protoss_nexus) < 12) and not (destroyed(zerg_hatchery) or defeated(roach_strike)));
+      do { move(protoss_guard, decoy_ground); }
+      priority 10;
+    }
+    transition guard_drawn_off: guard_pulled -> strike {
+      when (in_region(protoss_guard, decoy_ground) and in_region(roach_strike, west_staging) and not (destroyed(zerg_hatchery) or defeated(roach_strike)));
+      priority 10;
+    }
+    transition nexus_alarm: strike -> nexus_siege {
+      on unit_attacked(protoss_nexus, roach_strike);
+      when not (destroyed(zerg_hatchery) or defeated(roach_strike));
+      do { attack(protoss_guard, roach_strike); }
+      priority 20;
+    }
+    transition nexus_falls_fast: strike -> nexus_destroyed {
+      when (destroyed(protoss_nexus) and not (destroyed(zerg_hatchery) or defeated(roach_strike)));
+      priority 10;
+    }
+    transition nexus_falls: nexus_siege -> nexus_destroyed {
+      when (destroyed(protoss_nexus) and not (destroyed(zerg_hatchery) or defeated(roach_strike)));
+      priority 10;
+    }
+    transition plan_lost: failure_watch -> lure_failed {
+      when (destroyed(zerg_hatchery) or defeated(roach_strike));
+      priority 0;
+    }
+  }
+  binding sc2 {
+    zergling_bait = unit_group(owner=1, unit_type="Zergling", count=12, spawn=point_xy(22, 22));
+    roach_strike = unit_group(owner=1, unit_type="Roach", count=8, spawn=point_xy(14, 25));
+    zerg_hatchery = unit(owner=1, unit_type="Hatchery", at=point_xy(16.5, 18.5));
+    protoss_guard = unit_group(owner=2, composition=[unit(unit_type="Stalker", count=4), unit(unit_type="Zealot", count=4)], spawn=point_xy(48, 56));
+    protoss_nexus = unit(owner=2, unit_type="Nexus", at=point_xy(44.5, 61.5));
+    east_lure_zone = circle(center=point_xy(52, 51), radius=3);
+    decoy_ground = circle(center=point_xy(66, 40), radius=4);
+    west_staging = circle(center=point_xy(24, 47), radius=3);
+    __setup__ = setup(terminal_policy="first_wins");
+  }
+}

@@ -1,0 +1,71 @@
+strategy TypedFeint {
+  world {
+    force decoy { side = ally; role = "decoy"; }
+    force main { side = ally; role = "main_attack"; }
+    force defenders { side = enemy; role = "mobile_defense"; }
+    asset fake { side = enemy; role = "fake_target"; }
+    asset real { side = enemy; role = "real_target"; }
+    region trigger_zone;
+    region real_zone;
+  }
+  intent {
+    pattern Feint {
+      decoy = decoy;
+      fake_target = fake;
+      defenders = defenders;
+      main_force = main;
+      real_target = real;
+    }
+    primary destroyed(real);
+    success destroyed(real);
+    failure not alive(main);
+  }
+  semantics {
+    derive exposed = count(defenders) == 3 and count_in(defenders, real_zone) < 2;
+  }
+  plan {
+    start [feint, fail_watch];
+    phase feint {
+      purpose "Let the decoy induce redeployment";
+      actors [decoy]; focus [fake];
+      do { move(decoy, trigger_zone); }
+    }
+    phase observe { purpose "Wait for a measurable opening"; }
+    phase strike {
+      purpose "Exploit the real objective";
+      actors [main]; focus [real];
+      do { attack(main, real); }
+    }
+    phase win { purpose "Confirm destruction"; terminal success; }
+    phase fail_watch { purpose "Watch the main force"; }
+    phase loss { purpose "Record failure"; terminal failure; }
+    transition induce: feint -> observe {
+      on enter(decoy, trigger_zone);
+      when alive(main) and count_in(defenders, real_zone) >= 2;
+      do { retarget(defenders, fake); }
+      priority 10;
+    }
+    transition exploit: observe -> strike {
+      when exposed and alive(main); priority 10;
+    }
+    transition finish: strike -> win {
+      when destroyed(real) and not (not alive(main)); priority 10;
+    }
+    transition lose: fail_watch -> loss {
+      when not alive(main); priority 0;
+    }
+  }
+  binding sc2 {
+    decoy = unit_group(owner=1, unit_type="Medivac", count=1,
+                       spawn=point_xy(25.96, 38.5798));
+    main = unit_group(owner=1, unit_type="Marine", count=6,
+                      spawn=point_xy(25.96, 38.5798));
+    defenders = unit_group(owner=2, unit_type="Zealot", count=3,
+                           spawn=point_xy(36.7597, 49.73));
+    fake = unit(owner=2, unit_type="Nexus", at=point_xy(54.99, 47.18));
+    real = unit(owner=2, unit_type="Nexus", at=point_xy(24.3198, 47.8598));
+    trigger_zone = circle(center=point_xy(54.99, 47.18), radius=8);
+    real_zone = circle(center=point_xy(24.3198, 47.8598), radius=15);
+    __setup__ = setup(terminal_policy="first_wins");
+  }
+}

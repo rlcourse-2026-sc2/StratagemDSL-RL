@@ -1,0 +1,332 @@
+{
+ "examples/demos/cerulean_hellbat_raid.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "examples/demos/cerulean_lure_zerg_vs_protoss.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "examples/learning/01_event_redeploy.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "examples/learning/02_join_and_counter.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "examples/learning/03_typed_feint.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "examples/learning/04_petri_sync_counter.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "examples/learning/05_petri_feint_budget.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "examples/petri/arid_besiege_wei.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "examples/petri/cerulean_feint_cycle.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "examples/petri/sdjx_feint_cycle.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "examples/petri/swct_fork_trap.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "examples/stratagems/adcc_18_enter_signal.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "examples/stratagems/dhls_18_enter_signal.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "examples/stratagems/fkwz_18_enter_signal.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "examples/stratagems/gmzz_18_enter_signal.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "examples/stratagems/jctq_18_enter_signal.strat": {
+  "loose": [
+   "[WARNING] W110_LEGACY_API: path_passable is a compatibility alias for center_passable; center point only, no path"
+  ],
+  "strict": [
+   "[WARNING] W110_LEGACY_API: path_passable is a compatibility alias for center_passable; center point only, no path"
+  ]
+ },
+ "examples/stratagems/jdsr_18_enter_signal.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "examples/stratagems/sdjx_18_enter_signal.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "examples/stratagems/swct_18_enter_signal.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "examples/stratagems/tlhz_18_enter_signal.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "examples/stratagems/wwjz_18_enter_signal.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "examples/stratagems/wzsy_18_enter_signal.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "examples/stratagems/yqgz_18_enter_signal.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "tests/fixtures/corpus/fkwz_11_ready_pair.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "tests/fixtures/corpus/gmzz_20_enemy_loss_signal.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "tests/fixtures/demos/jctq_api_contract_demo.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "tests/fixtures/demos/jctq_talv_queue_timeout.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "tests/fixtures/pattern_negative/gmzz_closed_before_commit.strat": {
+  "loose": [
+   "[ERROR] C141_TRAP_COMMIT_TO_CLOSURE: Trap requires the way out to be closed after the enemy commits. source and target exist but no causal/ordered path connects them"
+  ],
+  "strict": [
+   "[ERROR] C141_TRAP_COMMIT_TO_CLOSURE: Trap requires the way out to be closed after the enemy commits. source and target exist but no causal/ordered path connects them"
+  ]
+ },
+ "tests/fixtures/pattern_negative/sdjx_wrong_relocation.strat": {
+  "loose": [
+   "[ERROR] C101_FEINT_THREAT_TO_RELOCATION: Feint requires the fake threat to causally induce defender relocation. missing source fact Threat('feint_force', 'enemy_main'); missing target fact Relocate('defenders', 'enemy_main')",
+   "[ERROR] C102_FEINT_RELOCATION_TO_WEAKENING: Feint requires defender relocation to create a weakened real objective. missing source fact Relocate('defenders', 'enemy_main'); missing target fact DefenseWeakened('enemy_expansion',)",
+   "[ERROR] C103_FEINT_WEAKENING_TO_EXPLOIT: Feint requires the weakened real objective to be exploited by the main force. missing source fact DefenseWeakened('enemy_expansion',)"
+  ],
+  "strict": [
+   "[ERROR] C101_FEINT_THREAT_TO_RELOCATION: Feint requires the fake threat to causally induce defender relocation. missing source fact Threat('feint_force', 'enemy_main'); missing target fact Relocate('defenders', 'enemy_main')",
+   "[ERROR] C102_FEINT_RELOCATION_TO_WEAKENING: Feint requires defender relocation to create a weakened real objective. missing source fact Relocate('defenders', 'enemy_main'); missing target fact DefenseWeakened('enemy_expansion',)",
+   "[ERROR] C103_FEINT_WEAKENING_TO_EXPLOIT: Feint requires the weakened real objective to be exploited by the main force. missing source fact DefenseWeakened('enemy_expansion',)"
+  ]
+ },
+ "tests/fixtures/pattern_negative/swct_wrong_way_out.strat": {
+  "loose": [
+   "[ERROR] C141_TRAP_COMMIT_TO_CLOSURE: Trap requires the way out to be closed after the enemy commits. missing target fact Isolated('enemy_defenders',)",
+   "[ERROR] C142_TRAP_CLOSURE_TO_EXPLOIT: Trap requires the cut-off enemy to be exploited. missing source fact Isolated('enemy_defenders',)"
+  ],
+  "strict": [
+   "[ERROR] C141_TRAP_COMMIT_TO_CLOSURE: Trap requires the way out to be closed after the enemy commits. missing target fact Isolated('enemy_defenders',)",
+   "[ERROR] C142_TRAP_CLOSURE_TO_EXPLOIT: Trap requires the cut-off enemy to be exploited. missing source fact Isolated('enemy_defenders',)"
+  ]
+ },
+ "tests/fixtures/petri_negative/competing_sync.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "tests/fixtures/petri_negative/once_cycle.strat": {
+  "loose": [
+   "[ERROR] P031_CYCLE: plan cycle scout -> report -> scout only passes once-per-round phases, so it can never repeat; mark a phase on it `repeatable` (v0.6) or use backend repetition inside a phase"
+  ],
+  "strict": [
+   "[ERROR] P031_CYCLE: plan cycle scout -> report -> scout only passes once-per-round phases, so it can never repeat; mark a phase on it `repeatable` (v0.6) or use backend repetition inside a phase"
+  ]
+ },
+ "tests/fixtures/petri_negative/unbounded_counter.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "tests/fixtures/petri_negative/zeno_cycle.strat": {
+  "loose": [],
+  "strict": []
+ },
+ "tests/fixtures/seeds/adcc.strat": {
+  "loose": [],
+  "strict": [
+   "[ERROR] E001_TERMINAL_POLICY: strict SC2 plans require setup(terminal_policy=\"first_wins\") to stop competing branches after a terminal result",
+   "[ERROR] E007_UNCONFIRMED_SUCCESS: reach_enemy_rear: terminal success must explicitly require intent.success",
+   "[ERROR] E008_SUCCESS_FAILURE_RACE: reach_enemy_rear: success must exclude intent.failure in the same observation"
+  ]
+ },
+ "tests/fixtures/seeds/dhls.strat": {
+  "loose": [],
+  "strict": [
+   "[ERROR] E001_TERMINAL_POLICY: strict SC2 plans require setup(terminal_policy=\"first_wins\") to stop competing branches after a terminal result",
+   "[ERROR] E005_EMPTY_DISTANCE: lure_via_nydus: distance(enemy_guard_force, ...) requires an explicit alive(enemy_guard_force) conjunct",
+   "[ERROR] E005_EMPTY_DISTANCE: lure_via_nydus: distance(enemy_home, ...) requires an explicit alive(enemy_home) conjunct",
+   "[ERROR] E005_EMPTY_DISTANCE: lure_via_mainway: distance(enemy_guard_force, ...) requires an explicit alive(enemy_guard_force) conjunct",
+   "[ERROR] E005_EMPTY_DISTANCE: lure_via_mainway: distance(enemy_home, ...) requires an explicit alive(enemy_home) conjunct",
+   "[ERROR] E007_UNCONFIRMED_SUCCESS: lure_via_mainway: terminal success must explicitly require intent.success",
+   "[ERROR] E008_SUCCESS_FAILURE_RACE: lure_via_mainway: success must exclude intent.failure in the same observation",
+   "[ERROR] E005_EMPTY_DISTANCE: lure_via_pathway: distance(enemy_guard_force, ...) requires an explicit alive(enemy_guard_force) conjunct",
+   "[ERROR] E005_EMPTY_DISTANCE: lure_via_pathway: distance(enemy_home, ...) requires an explicit alive(enemy_home) conjunct",
+   "[ERROR] E007_UNCONFIRMED_SUCCESS: nydus_reaches_redirect: terminal success must explicitly require intent.success",
+   "[ERROR] E008_SUCCESS_FAILURE_RACE: nydus_reaches_redirect: success must exclude intent.failure in the same observation",
+   "[ERROR] E007_UNCONFIRMED_SUCCESS: pathway_reaches_midpoint: terminal success must explicitly require intent.success",
+   "[ERROR] E008_SUCCESS_FAILURE_RACE: pathway_reaches_midpoint: success must exclude intent.failure in the same observation"
+  ]
+ },
+ "tests/fixtures/seeds/fkwz.strat": {
+  "loose": [],
+  "strict": [
+   "[ERROR] E001_TERMINAL_POLICY: strict SC2 plans require setup(terminal_policy=\"first_wins\") to stop competing branches after a terminal result",
+   "[ERROR] E007_UNCONFIRMED_SUCCESS: attack_gateway: terminal success must explicitly require intent.success",
+   "[ERROR] E008_SUCCESS_FAILURE_RACE: attack_gateway: success must exclude intent.failure in the same observation"
+  ]
+ },
+ "tests/fixtures/seeds/gmzz.strat": {
+  "loose": [],
+  "strict": [
+   "[ERROR] E001_TERMINAL_POLICY: strict SC2 plans require setup(terminal_policy=\"first_wins\") to stop competing branches after a terminal result",
+   "[ERROR] E005_EMPTY_DISTANCE: raise_a_forces_retreat: distance(enemy_raiders, ...) requires an explicit alive(enemy_raiders) conjunct",
+   "[ERROR] E005_EMPTY_DISTANCE: raise_a_forces_retreat: distance(allied_defenders, ...) requires an explicit alive(allied_defenders) conjunct",
+   "[ERROR] E005_EMPTY_DISTANCE: raise_b_forces_retreat: distance(enemy_raiders, ...) requires an explicit alive(enemy_raiders) conjunct",
+   "[ERROR] E005_EMPTY_DISTANCE: raise_b_forces_retreat: distance(allied_defenders, ...) requires an explicit alive(allied_defenders) conjunct",
+   "[ERROR] E005_EMPTY_DISTANCE: raise_c_forces_retreat: distance(enemy_raiders, ...) requires an explicit alive(enemy_raiders) conjunct",
+   "[ERROR] E005_EMPTY_DISTANCE: raise_c_forces_retreat: distance(allied_defenders, ...) requires an explicit alive(allied_defenders) conjunct",
+   "[ERROR] E007_UNCONFIRMED_SUCCESS: raiders_destroyed: terminal success must explicitly require intent.success",
+   "[ERROR] E008_SUCCESS_FAILURE_RACE: raiders_destroyed: success must exclude intent.failure in the same observation"
+  ]
+ },
+ "tests/fixtures/seeds/jctq.strat": {
+  "loose": [
+   "[WARNING] W110_LEGACY_API: path_passable is a compatibility alias for center_passable; center point only, no path"
+  ],
+  "strict": [
+   "[WARNING] W110_LEGACY_API: path_passable is a compatibility alias for center_passable; center point only, no path",
+   "[ERROR] E001_TERMINAL_POLICY: strict SC2 plans require setup(terminal_policy=\"first_wins\") to stop competing branches after a terminal result",
+   "[ERROR] E008_SUCCESS_FAILURE_RACE: conceal_and_escape: success must exclude intent.failure in the same observation"
+  ]
+ },
+ "tests/fixtures/seeds/jdsr.strat": {
+  "loose": [],
+  "strict": [
+   "[ERROR] E001_TERMINAL_POLICY: strict SC2 plans require setup(terminal_policy=\"first_wins\") to stop competing branches after a terminal result",
+   "[ERROR] E007_UNCONFIRMED_SUCCESS: finish: terminal success must explicitly require intent.success",
+   "[ERROR] E008_SUCCESS_FAILURE_RACE: finish: success must exclude intent.failure in the same observation"
+  ]
+ },
+ "tests/fixtures/seeds/sdjx.strat": {
+  "loose": [],
+  "strict": [
+   "[ERROR] E001_TERMINAL_POLICY: strict SC2 plans require setup(terminal_policy=\"first_wins\") to stop competing branches after a terminal result",
+   "[ERROR] E007_UNCONFIRMED_SUCCESS: launch_real_attack: terminal success must explicitly require intent.success",
+   "[ERROR] E008_SUCCESS_FAILURE_RACE: launch_real_attack: success must exclude intent.failure in the same observation"
+  ]
+ },
+ "tests/fixtures/seeds/swct.strat": {
+  "loose": [],
+  "strict": [
+   "[ERROR] E001_TERMINAL_POLICY: strict SC2 plans require setup(terminal_policy=\"first_wins\") to stop competing branches after a terminal result",
+   "[ERROR] E007_UNCONFIRMED_SUCCESS: exploit: terminal success must explicitly require intent.success",
+   "[ERROR] E008_SUCCESS_FAILURE_RACE: exploit: success must exclude intent.failure in the same observation"
+  ]
+ },
+ "tests/fixtures/seeds/tlhz.strat": {
+  "loose": [],
+  "strict": [
+   "[ERROR] E001_TERMINAL_POLICY: strict SC2 plans require setup(terminal_policy=\"first_wins\") to stop competing branches after a terminal result",
+   "[ERROR] E007_UNCONFIRMED_SUCCESS: payoff_ready: terminal success must explicitly require intent.success",
+   "[ERROR] E008_SUCCESS_FAILURE_RACE: payoff_ready: success must exclude intent.failure in the same observation"
+  ]
+ },
+ "tests/fixtures/seeds/wwjz.strat": {
+  "loose": [],
+  "strict": [
+   "[ERROR] E001_TERMINAL_POLICY: strict SC2 plans require setup(terminal_policy=\"first_wins\") to stop competing branches after a terminal result",
+   "[ERROR] E007_UNCONFIRMED_SUCCESS: redeployment_opens_window: terminal success must explicitly require intent.success",
+   "[ERROR] E008_SUCCESS_FAILURE_RACE: redeployment_opens_window: success must exclude intent.failure in the same observation"
+  ]
+ },
+ "tests/fixtures/seeds/wzsy.strat": {
+  "loose": [],
+  "strict": [
+   "[ERROR] E001_TERMINAL_POLICY: strict SC2 plans require setup(terminal_policy=\"first_wins\") to stop competing branches after a terminal result",
+   "[ERROR] E005_EMPTY_DISTANCE: apparent_strength_forces_retreat: distance(real_force, ...) requires an explicit alive(real_force) conjunct",
+   "[ERROR] E005_EMPTY_DISTANCE: apparent_strength_forces_retreat: distance(enemy_force, ...) requires an explicit alive(enemy_force) conjunct",
+   "[ERROR] E006_DYNAMIC_DEATH: illusion_collapses: dynamic live-group queries exclude the dead EventUnit; use a stable roster or observed-live then count polling",
+   "[ERROR] E007_UNCONFIRMED_SUCCESS: exploit_window: terminal success must explicitly require intent.success",
+   "[ERROR] E008_SUCCESS_FAILURE_RACE: exploit_window: success must exclude intent.failure in the same observation"
+  ]
+ },
+ "tests/fixtures/seeds/yqgz.strat": {
+  "loose": [],
+  "strict": [
+   "[ERROR] E001_TERMINAL_POLICY: strict SC2 plans require setup(terminal_policy=\"first_wins\") to stop competing branches after a terminal result",
+   "[ERROR] E007_UNCONFIRMED_SUCCESS: counter_window: terminal success must explicitly require intent.success",
+   "[ERROR] E008_SUCCESS_FAILURE_RACE: counter_window: success must exclude intent.failure in the same observation"
+  ]
+ },
+ "tests/fixtures/variants/adcc_decoy_retarget.strat": {
+  "loose": [
+   "[WARNING] C090_PATTERN_UNBOUND: pattern 'CovertBypass' uses legacy unbound syntax; causal proof skipped. Add explicit role bindings."
+  ],
+  "strict": [
+   "[WARNING] C090_PATTERN_UNBOUND: pattern 'CovertBypass' uses legacy unbound syntax; causal proof skipped. Add explicit role bindings.",
+   "[ERROR] E001_TERMINAL_POLICY: strict SC2 plans require setup(terminal_policy=\"first_wins\") to stop competing branches after a terminal result",
+   "[ERROR] E007_UNCONFIRMED_SUCCESS: decoy_draws_blockers: terminal success must explicitly require intent.success",
+   "[ERROR] E008_SUCCESS_FAILURE_RACE: decoy_draws_blockers: success must exclude intent.failure in the same observation"
+  ]
+ },
+ "tests/fixtures/variants/dhls_deep_pull.strat": {
+  "loose": [
+   "[WARNING] C090_PATTERN_UNBOUND: pattern 'Lure' uses legacy unbound syntax; causal proof skipped. Add explicit role bindings."
+  ],
+  "strict": [
+   "[WARNING] C090_PATTERN_UNBOUND: pattern 'Lure' uses legacy unbound syntax; causal proof skipped. Add explicit role bindings.",
+   "[ERROR] E001_TERMINAL_POLICY: strict SC2 plans require setup(terminal_policy=\"first_wins\") to stop competing branches after a terminal result",
+   "[ERROR] E007_UNCONFIRMED_SUCCESS: deep_commitment: terminal success must explicitly require intent.success",
+   "[ERROR] E008_SUCCESS_FAILURE_RACE: deep_commitment: success must exclude intent.failure in the same observation"
+  ]
+ },
+ "tests/fixtures/variants/dhls_dual_corridor.strat": {
+  "loose": [
+   "[WARNING] C090_PATTERN_UNBOUND: pattern 'Lure' uses legacy unbound syntax; causal proof skipped. Add explicit role bindings."
+  ],
+  "strict": [
+   "[WARNING] C090_PATTERN_UNBOUND: pattern 'Lure' uses legacy unbound syntax; causal proof skipped. Add explicit role bindings.",
+   "[ERROR] E001_TERMINAL_POLICY: strict SC2 plans require setup(terminal_policy=\"first_wins\") to stop competing branches after a terminal result",
+   "[ERROR] E007_UNCONFIRMED_SUCCESS: left_committed: terminal success must explicitly require intent.success",
+   "[ERROR] E008_SUCCESS_FAILURE_RACE: left_committed: success must exclude intent.failure in the same observation",
+   "[ERROR] E007_UNCONFIRMED_SUCCESS: right_committed: terminal success must explicitly require intent.success",
+   "[ERROR] E008_SUCCESS_FAILURE_RACE: right_committed: success must exclude intent.failure in the same observation"
+  ]
+ },
+ "tests/fixtures/variants/gmzz_two_stage_gate.strat": {
+  "loose": [],
+  "strict": [
+   "[ERROR] E001_TERMINAL_POLICY: strict SC2 plans require setup(terminal_policy=\"first_wins\") to stop competing branches after a terminal result",
+   "[ERROR] E007_UNCONFIRMED_SUCCESS: inner_closed: terminal success must explicitly require intent.success",
+   "[ERROR] E008_SUCCESS_FAILURE_RACE: inner_closed: success must exclude intent.failure in the same observation"
+  ]
+ },
+ "tests/fixtures/variants/swct_counted_return.strat": {
+  "loose": [],
+  "strict": [
+   "[ERROR] E001_TERMINAL_POLICY: strict SC2 plans require setup(terminal_policy=\"first_wins\") to stop competing branches after a terminal result",
+   "[ERROR] E007_UNCONFIRMED_SUCCESS: closure: terminal success must explicitly require intent.success",
+   "[ERROR] E008_SUCCESS_FAILURE_RACE: closure: success must exclude intent.failure in the same observation"
+  ]
+ }
+}

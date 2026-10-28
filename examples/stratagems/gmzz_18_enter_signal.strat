@@ -1,0 +1,184 @@
+strategy gmzz_18_enter_signal {
+  world {
+    asset gate_a {
+      side = "ally";
+      role = "barrier";
+    }
+    asset gate_b {
+      side = "ally";
+      role = "barrier";
+    }
+    asset gate_c {
+      side = "ally";
+      role = "barrier";
+    }
+    force allied_defenders {
+      side = "ally";
+      role = "trap_force";
+    }
+    force enemy_raiders {
+      side = "enemy";
+      role = "mobile_raiders";
+    }
+    asset support_a {
+      side = "enemy";
+      role = "static_support";
+    }
+    asset support_b {
+      side = "enemy";
+      role = "static_support";
+    }
+    asset support_c {
+      side = "enemy";
+      role = "static_support";
+    }
+    region retreat_checkpoint {
+      role = "fallback";
+    }
+    region support_return_zone {
+      role = "support_return";
+    }
+    region review_rally {
+      role = "corpus_gate";
+    }
+  }
+  initial { alive(allied_defenders); alive(enemy_raiders); }
+  intent {
+    pattern Trap {
+      enemy = enemy_raiders;
+      lure = allied_defenders;
+      way_out = gate_a;
+      trap_force = allied_defenders;
+      objective = enemy_raiders;
+    }
+    primary defeated(enemy_raiders);
+    secondary alive(allied_defenders);
+    success defeated(enemy_raiders);
+    failure not (alive(allied_defenders));
+  }
+  plan {
+    start [gate_control, review_failure_watch];
+    phase gate_control {
+      purpose "Keep the depot wall under player control until the raiders are admitted.";
+      actors [allied_defenders];
+      focus [enemy_raiders];
+    }
+    phase enemy_committed {
+      purpose "Enemy Zerglings attack the Marines after a depot is lowered; once committed, the player is expected to raise the depot wall and remove the escape route.";
+      actors [enemy_raiders];
+      focus [allied_defenders];
+      do parallel { set_mode(gate_a, "raised"); set_mode(gate_b, "raised"); set_mode(gate_c, "raised"); }
+    }
+    phase retreating {
+      purpose "After sufficient losses or a raised barrier, the enemy attempts to regain Spine Crawler support.";
+      actors [enemy_raiders];
+      focus [retreat_checkpoint];
+    }
+    phase escaped {
+      purpose "Enemy reaches its fallback corridor; the trap has failed to isolate it.";
+      actors [enemy_raiders];
+      focus [support_return_zone];
+      terminal failure;
+    }
+    phase trapped_success {
+      purpose "The mobile enemy force is destroyed before it regains static support.";
+      actors [allied_defenders];
+      focus [enemy_raiders];
+    }
+    phase confirmed_trapped_success {
+      purpose "\u786e\u8ba4\u53ef\u89c2\u6d4b\u76ee\u6807\u8fbe\u6210\uff0c\u9501\u5b9a\u8ba1\u5212\u6210\u529f\u3002";
+      actors [allied_defenders];
+      terminal success;
+    }
+    phase review_gate {
+      purpose "\u5165\u533a\u4fe1\u53f7";
+      actors [allied_defenders];
+    }
+    phase review_failure_watch {
+      purpose "\u72ec\u7acb\u68c0\u67e5intent.failure\uff1b\u5931\u8d25\u540e\u505c\u6b62\u6240\u6709\u8ba1\u5212\u5206\u652f\u3002";
+    }
+    phase review_failure {
+      purpose "\u663e\u5f0f\u5931\u8d25\u7ec8\u70b9\u3002";
+      terminal failure;
+    }
+    transition lower_a: gate_control -> review_gate {
+      on ability_completed(gate_a, "SupplyDepotLower");
+      when not (not (alive(allied_defenders)));
+      do { attack(enemy_raiders, allied_defenders); }
+      priority 10;
+    }
+    transition lower_b: gate_control -> review_gate {
+      on ability_completed(gate_b, "SupplyDepotLower");
+      when not (not (alive(allied_defenders)));
+      do { attack(enemy_raiders, allied_defenders); }
+      priority 20;
+    }
+    transition lower_c: gate_control -> review_gate {
+      on ability_completed(gate_c, "SupplyDepotLower");
+      when not (not (alive(allied_defenders)));
+      do { attack(enemy_raiders, allied_defenders); }
+      priority 30;
+    }
+    transition losses_force_retreat: enemy_committed -> retreating {
+      on unit_died(enemy_raiders);
+      when ((count(enemy_raiders) <= 6) and not (not (alive(allied_defenders))));
+      do { retreat(enemy_raiders, retreat_checkpoint); }
+      priority 10;
+    }
+    transition raise_a_forces_retreat: enemy_committed -> retreating {
+      on ability_completed(gate_a, "SupplyDepotRaise");
+      when (alive(allied_defenders) and (alive(enemy_raiders) and ((distance(enemy_raiders, allied_defenders) >= 18) and not (not (alive(allied_defenders))))));
+      do { retreat(enemy_raiders, retreat_checkpoint); }
+      priority 20;
+    }
+    transition raise_b_forces_retreat: enemy_committed -> retreating {
+      on ability_completed(gate_b, "SupplyDepotRaise");
+      when (alive(allied_defenders) and (alive(enemy_raiders) and ((distance(enemy_raiders, allied_defenders) >= 18) and not (not (alive(allied_defenders))))));
+      do { retreat(enemy_raiders, retreat_checkpoint); }
+      priority 30;
+    }
+    transition raise_c_forces_retreat: enemy_committed -> retreating {
+      on ability_completed(gate_c, "SupplyDepotRaise");
+      when (alive(allied_defenders) and (alive(enemy_raiders) and ((distance(enemy_raiders, allied_defenders) >= 18) and not (not (alive(allied_defenders))))));
+      do { retreat(enemy_raiders, retreat_checkpoint); }
+      priority 40;
+    }
+    transition raiders_reach_checkpoint: retreating -> escaped {
+      on enter(enemy_raiders, retreat_checkpoint);
+      do { move(enemy_raiders, support_return_zone); }
+      priority 20;
+    }
+    transition raiders_destroyed: retreating -> trapped_success {
+      on unit_died(enemy_raiders);
+      when ((count(enemy_raiders) == 0) and not (not (alive(allied_defenders))));
+      priority 10;
+    }
+    transition confirm_trapped_success: trapped_success -> confirmed_trapped_success {
+      when (defeated(enemy_raiders) and not (not (alive(allied_defenders))));
+      priority 10;
+    }
+    transition review_release: review_gate -> enemy_committed {
+      on enter(allied_defenders, retreat_checkpoint);
+      when ((alive(allied_defenders) and in_region(allied_defenders, retreat_checkpoint)) and not (not (alive(allied_defenders))));
+      priority 10;
+    }
+    transition review_failure_detected: review_failure_watch -> review_failure {
+      when not (alive(allied_defenders));
+      priority 0;
+    }
+  }
+  binding sc2 {
+    gate_a = unit(owner=1, unit_type="SupplyDepot", at=point_id(36022368));
+    gate_b = unit(owner=1, unit_type="SupplyDepot", at=point_id(515963392));
+    gate_c = unit(owner=1, unit_type="SupplyDepot", at=point_id(357677958));
+    allied_defenders = unit_group(owner=1, unit_type="Marine", count=5, spawn=point_id(1922637032));
+    enemy_raiders = unit_group(owner=2, unit_type="Zergling", count=8, spawn=point_id(964991801));
+    support_a = unit(owner=2, unit_type="SpineCrawler", at=point_id(1553954260));
+    support_b = unit(owner=2, unit_type="SpineCrawler", at=point_id(810154836));
+    support_c = unit(owner=2, unit_type="SpineCrawler", at=point_id(401521942));
+    retreat_checkpoint = circle(center=point_id(381816086), radius=2);
+    support_return_zone = circle(center=point_id(298592631), radius=2);
+    __setup__ = setup(terminal_policy="first_wins");
+    review_rally = circle(center=point_id(1922637032), radius=5);
+  }
+}

@@ -1,0 +1,36 @@
+// Expected: N010_DEAD_TRANSITION, N011_NEVER_MARKED, N050_NO_SUCCESS_PATH.
+// `sync` needs a token on both a and b, but a and b compete for the single
+// token of `begin` (a priority-arbitrated choice, not a fork). The v0.5
+// checker only caught this shape behind a `join` node (P023); the net
+// analysis proves it for any multi-input transition.
+strategy PetriCompetingSync {
+  world {
+    force allies { side = "ally"; role = "main_attack"; }
+    force guards { side = "enemy"; role = "mobile_defense"; }
+    asset base { side = "enemy"; role = "critical"; }
+    region gate { role = "observation_zone"; }
+  }
+  intent { primary destroyed(base); success destroyed(base); failure not (alive(allies)); }
+  plan {
+    start [begin, fail_watch];
+    phase begin { purpose "choose"; }
+    phase a { purpose "a"; }
+    phase b { purpose "b"; }
+    phase done { purpose "done"; actors [allies]; do { attack(allies, base); } }
+    phase win { purpose "win"; terminal success; }
+    phase fail_watch { purpose "fail watch"; }
+    phase loss { purpose "loss"; terminal failure; }
+    transition to_a: begin -> a { when alive(allies); priority 10; }
+    transition to_b: begin -> b { when alive(guards); priority 11; }
+    transition sync: a, b -> done { when alive(allies); priority 10; }
+    transition finish: done -> win { when (destroyed(base) and not (not (alive(allies)))); priority 10; }
+    transition lose: fail_watch -> loss { when not (alive(allies)); priority 0; }
+  }
+  binding sc2 {
+    allies = unit_group(owner=1, unit_type="Marine", count=4, spawn=point_xy(25.96, 38.5798));
+    guards = unit_group(owner=2, unit_type="Zealot", count=3, spawn=point_xy(36.7597, 49.73));
+    base = unit(owner=2, unit_type="Nexus", at=point_xy(54.99, 47.18));
+    gate = circle(center=point_xy(54.99, 47.18), radius=8);
+    __setup__ = setup(terminal_policy="first_wins");
+  }
+}

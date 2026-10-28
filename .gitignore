@@ -1,0 +1,30 @@
+# build outputs (every layer writes here; regenerate with strat / tools/run_suite.py)
+build/
+*.SC2Map
+!assets/base_maps/*.SC2Map
+
+# third-party tool users drop in themselves (see assets/native/README.md)
+assets/native/MPQEditor.exe
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store
+.coverage
+.pytest_tmp/
+tests/l0_architecture/cases/
+out/
+set_api.bat
+out-*/
+vendor/galaxy_checker/node_modules/
+vendor/galaxy_checker/sc2data/
+vendor/galaxy_checker/package-lock.json
+stratagem_runs/

@@ -1,0 +1,79 @@
+strategy fkwz {
+  world {
+    asset warp_gate_a { side = ally; role = production; }
+    asset warp_gate_b { side = ally; role = production; }
+    asset allied_pylon_a { side = ally; role = support; }
+    asset allied_pylon_b { side = ally; role = protected_support; }
+    force transport_force { side = ally; role = forward_transport; }
+    asset enemy_pylon_a { side = enemy; role = support; }
+    asset enemy_pylon_b { side = enemy; role = support; }
+    asset enemy_cannons { side = enemy; role = route_denial; }
+    asset enemy_gateway { side = enemy; role = critical; under_construction = true; }
+    force enemy_stalker { side = enemy; role = initial_pressure; }
+    force enemy_reinforcement { side = enemy; role = reinforcement; initial = false; }
+    region reinforcement_zone { role = spawn; }
+    region forward_zone { role = forward_deployment; }
+  }
+  initial { alive(transport_force); alive(enemy_gateway); alive(enemy_stalker); alive(allied_pylon_b); }
+  intent {
+    pattern ForwardDeployment;
+    primary destroyed(enemy_gateway);
+    secondary alive(transport_force);
+    success destroyed(enemy_gateway);
+    failure destroyed(allied_pylon_b);
+  }
+  plan {
+    start [deadline_pressure];
+    phase deadline_pressure {
+      purpose "The initial Stalker pressures the power infrastructure while the enemy Gateway is still under construction.";
+      actors [enemy_stalker]; focus [allied_pylon_b, enemy_gateway];
+      do { attack(enemy_stalker, allied_pylon_b); }
+    }
+    phase forward_transport {
+      purpose "Use Warp Prism mobility to bypass the Photon Cannon line.";
+      actors [transport_force]; focus [forward_zone];
+      do { move(transport_force, forward_zone); }
+    }
+    phase forward_warp {
+      purpose "Switch the Prism to Phasing mode and establish a forward reinforcement point.";
+      actors [transport_force]; focus [enemy_gateway];
+      do { set_mode(transport_force, "phasing"); }
+    }
+    phase destroy_gateway {
+      purpose "Destroy the Gateway before its construction-complete reinforcement fires.";
+      actors [transport_force]; focus [enemy_gateway]; terminal success;
+    }
+    phase reinforcement_arrives {
+      purpose "Gateway completion creates six additional Stalkers and increases pressure on the allied Pylon.";
+      actors [enemy_reinforcement, enemy_stalker]; focus [allied_pylon_b]; terminal failure;
+    }
+    transition start_forward_operation: deadline_pressure -> forward_transport { when alive(transport_force); priority 20; }
+    transition deploy_forward: forward_transport -> forward_warp { when alive(transport_force); priority 10; }
+    transition attack_gateway: forward_warp -> destroy_gateway { when alive(enemy_gateway); priority 10; }
+    transition gateway_deadline: deadline_pressure -> reinforcement_arrives {
+      on construction_completed(enemy_gateway);
+      do sequence {
+        spawn(enemy_reinforcement, reinforcement_zone);
+        attack(enemy_stalker, allied_pylon_b);
+        attack(enemy_reinforcement, allied_pylon_b);
+      }
+      priority 10;
+    }
+  }
+  binding sc2 {
+    warp_gate_a = unit(owner=1, unit_type="WarpGate", at=point_id(1805498135));
+    warp_gate_b = unit(owner=1, unit_type="WarpGate", at=point_id(68388774));
+    allied_pylon_a = unit(owner=1, unit_type="Pylon", at=point_id(1961389388));
+    allied_pylon_b = unit(owner=1, unit_type="Pylon", at=point_id(679995258));
+    transport_force = unit_group(owner=1, unit_type="WarpPrism", count=1, spawn=point_id(481710524));
+    enemy_pylon_a = unit(owner=2, unit_type="Pylon", at=point_id(696273544));
+    enemy_pylon_b = unit(owner=2, unit_type="Pylon", at=point_id(240688391));
+    enemy_cannons = unit_group(owner=2, unit_type="PhotonCannon", count=3, spawn=point_id(1326529289));
+    enemy_gateway = unit(owner=2, unit_type="Gateway", at=point_id(1931367685));
+    enemy_stalker = unit_group(owner=2, unit_type="Stalker", count=1, spawn=point_id(1374904795));
+    enemy_reinforcement = unit_group(owner=2, unit_type="Stalker", count=6, spawn=point_id(1374904795));
+    reinforcement_zone = circle(center=point_id(1374904795), radius=2);
+    forward_zone = circle(center=point_id(1931367685), radius=6);
+    __setup__ = setup(resources=[minerals(player=1, value=400), minerals(player=2, value=1000)]);
+  }
+}

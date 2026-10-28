@@ -1,0 +1,86 @@
+// v0.6 lesson 5: a repeated feint as a bounded loop.
+//
+//   feint <-> regroup is a cycle; it may repeat because both phases are
+//   `repeatable`, and it terminates because every extra feint spends a token
+//   of `budget`. `go` uses a read arc (?pulled: at least one feint drew the
+//   guards, the token stays) and an inhibitor arc (!budget: only after the
+//   last feint has been spent).
+strategy PetriFeintBudget {
+  world {
+    force decoy { side = "ally"; role = "decoy"; }
+    force allies { side = "ally"; role = "main_attack"; }
+    force guards { side = "enemy"; role = "mobile_defense"; }
+    asset base { side = "enemy"; role = "critical"; }
+    region gate { role = "feint_trigger"; }
+    region home { role = "regroup_zone"; }
+  }
+  intent {
+    primary destroyed(base);
+    success destroyed(base);
+    failure not (alive(allies));
+  }
+  plan {
+    start [feint, wait_strike, fail_watch];
+    place budget { purpose "extra feints the decoy may still run"; initial 2; capacity 2; }
+    place pulled { purpose "one token per feint that the guards answered"; capacity 3; }
+    phase feint {
+      purpose "The decoy threatens the base";
+      repeatable;
+      actors [decoy];
+      focus [base];
+      do { move(decoy, gate); }
+    }
+    phase regroup {
+      purpose "The decoy falls back to regroup";
+      repeatable;
+      actors [decoy];
+      focus [guards];
+      do { move(decoy, home); }
+    }
+    phase wait_strike {
+      purpose "The main force holds until the feints are spent";
+      actors [allies];
+      focus [base];
+      do { hold(allies); }
+    }
+    phase strike {
+      purpose "Hit the base after the guards were pulled";
+      actors [allies];
+      focus [base];
+      do { attack(allies, base); }
+    }
+    phase win { purpose "Confirm the objective"; terminal success; }
+    phase fail_watch { purpose "Observe allied defeat"; }
+    phase loss { purpose "Record failure"; terminal failure; }
+    transition threat: feint -> regroup, pulled {
+      on enter(decoy, gate);
+      do { retarget(guards, decoy); }
+      priority 10;
+    }
+    transition again: regroup, budget -> feint {
+      on enter(decoy, home);
+      priority 10;
+    }
+    transition go: wait_strike, ?pulled, !budget -> strike {
+      when alive(allies);
+      priority 10;
+    }
+    transition finish: strike -> win {
+      when (destroyed(base) and not (not (alive(allies))));
+      priority 10;
+    }
+    transition lose: fail_watch -> loss {
+      when not (alive(allies));
+      priority 0;
+    }
+  }
+  binding sc2 {
+    decoy = unit_group(owner=1, unit_type="Hellion", count=3, spawn=point_xy(25.96, 38.5798));
+    allies = unit_group(owner=1, unit_type="Marine", count=8, spawn=point_xy(25.96, 38.5798));
+    guards = unit_group(owner=2, unit_type="Zealot", count=4, spawn=point_xy(36.7597, 49.73));
+    base = unit(owner=2, unit_type="Nexus", at=point_xy(54.99, 47.18));
+    gate = circle(center=point_xy(54.99, 47.18), radius=8);
+    home = circle(center=point_xy(25.96, 38.5798), radius=6);
+    __setup__ = setup(terminal_policy="first_wins");
+  }
+}

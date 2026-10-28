@@ -1,0 +1,159 @@
+strategy dhls_18_enter_signal {
+  world {
+    force allied_force {
+      side = "ally";
+      role = "bait_and_main";
+    }
+    asset nydus_network {
+      side = "ally";
+      role = "mobility";
+    }
+    asset nydus_exit {
+      side = "ally";
+      role = "mobility";
+    }
+    asset allied_home {
+      side = "ally";
+      role = "protected";
+    }
+    force enemy_guard_force {
+      side = "enemy";
+      role = "base_guard";
+    }
+    asset enemy_home {
+      side = "enemy";
+      role = "critical";
+    }
+    region nydus_lure_zone {
+      role = "lure";
+    }
+    region nydus_enemy_target {
+      role = "redirect";
+    }
+    region mainway_lure_zone {
+      role = "lure";
+    }
+    region pathway_lure_zone {
+      role = "lure";
+    }
+    region pathway_midpoint {
+      role = "redirect";
+    }
+    region review_rally {
+      role = "corpus_gate";
+    }
+  }
+  initial { alive(allied_force); alive(enemy_guard_force); alive(enemy_home); alive(allied_home); }
+  intent {
+    pattern Lure {
+      bait = allied_force;
+      enemy = enemy_guard_force;
+      stronghold = enemy_home;
+      lure_zone = nydus_lure_zone;
+      relocation_target = nydus_enemy_target;
+      strike_force = allied_force;
+    }
+    primary destroyed(enemy_home);
+    secondary alive(allied_home);
+    success (destroyed(enemy_home) or defeated(enemy_guard_force));
+    failure destroyed(allied_home);
+  }
+  plan {
+    start [review_gate, review_failure_watch];
+    phase lure_wait {
+      purpose "Keep the main force out of the strong defensive position while a small detachment chooses a lure corridor.";
+      actors [allied_force];
+      focus [enemy_guard_force, enemy_home];
+    }
+    phase nydus_pull {
+      purpose "Enemy follows the Nydus-side lure.";
+      actors [enemy_guard_force];
+      focus [nydus_enemy_target];
+    }
+    phase pathway_pull {
+      purpose "Enemy follows the side pathway lure.";
+      actors [enemy_guard_force];
+      focus [pathway_midpoint];
+    }
+    phase base_assault {
+      purpose "Exploit the displaced defense and attack the enemy Command Center.";
+      actors [allied_force];
+      focus [enemy_home];
+      do { attack(allied_force, enemy_home); }
+    }
+    phase confirmed_base_assault {
+      purpose "\u786e\u8ba4\u53ef\u89c2\u6d4b\u76ee\u6807\u8fbe\u6210\uff0c\u9501\u5b9a\u8ba1\u5212\u6210\u529f\u3002";
+      actors [allied_force];
+      terminal success;
+    }
+    phase review_gate {
+      purpose "\u5165\u533a\u4fe1\u53f7";
+      actors [allied_force];
+    }
+    phase review_failure_watch {
+      purpose "\u72ec\u7acb\u68c0\u67e5intent.failure\uff1b\u5931\u8d25\u540e\u505c\u6b62\u6240\u6709\u8ba1\u5212\u5206\u652f\u3002";
+    }
+    phase review_failure {
+      purpose "\u663e\u5f0f\u5931\u8d25\u7ec8\u70b9\u3002";
+      terminal failure;
+    }
+    transition lure_via_nydus: lure_wait -> nydus_pull {
+      on enter(allied_force, nydus_lure_zone);
+      when (alive(enemy_home) and (alive(enemy_guard_force) and ((distance(enemy_guard_force, enemy_home) < 18) and not (destroyed(allied_home)))));
+      do { move(enemy_guard_force, nydus_enemy_target); }
+      priority 10;
+    }
+    transition lure_via_mainway: lure_wait -> base_assault {
+      on enter(allied_force, mainway_lure_zone);
+      when (alive(enemy_home) and (alive(enemy_guard_force) and ((distance(enemy_guard_force, enemy_home) < 18) and not (destroyed(allied_home)))));
+      do { attack(enemy_guard_force, allied_home); }
+      priority 20;
+    }
+    transition lure_via_pathway: lure_wait -> pathway_pull {
+      on enter(allied_force, pathway_lure_zone);
+      when (alive(enemy_home) and (alive(enemy_guard_force) and ((distance(enemy_guard_force, enemy_home) < 18) and not (destroyed(allied_home)))));
+      do { move(enemy_guard_force, pathway_midpoint); }
+      priority 30;
+    }
+    transition nydus_reaches_redirect: nydus_pull -> base_assault {
+      on enter(enemy_guard_force, nydus_enemy_target);
+      when not (destroyed(allied_home));
+      do { attack(enemy_guard_force, allied_home); }
+      priority 10;
+    }
+    transition pathway_reaches_midpoint: pathway_pull -> base_assault {
+      on enter(enemy_guard_force, pathway_midpoint);
+      when not (destroyed(allied_home));
+      do { attack(enemy_guard_force, allied_home); }
+      priority 10;
+    }
+    transition confirm_base_assault: base_assault -> confirmed_base_assault {
+      when ((destroyed(enemy_home) or defeated(enemy_guard_force)) and not (destroyed(allied_home)));
+      priority 10;
+    }
+    transition review_release: review_gate -> lure_wait {
+      on enter(allied_force, mainway_lure_zone);
+      when ((alive(allied_force) and in_region(allied_force, mainway_lure_zone)) and not (destroyed(allied_home)));
+      priority 10;
+    }
+    transition review_failure_detected: review_failure_watch -> review_failure {
+      when destroyed(allied_home);
+      priority 0;
+    }
+  }
+  binding sc2 {
+    allied_force = unit_group(owner=1, composition=[unit(unit_type="Roach", count=4), unit(unit_type="Zergling", count=9)], spawn=point_id(328538018));
+    nydus_network = unit(owner=1, unit_type="NydusNetwork", at=point_id(177429926));
+    nydus_exit = unit(owner=1, unit_type="NydusCanal", at=point_id(1908401975));
+    allied_home = unit(owner=1, unit_type="Hatchery", at=point_id(1100075540));
+    enemy_guard_force = unit_group(owner=2, composition=[unit(unit_type="Marine", count=8), unit(unit_type="SiegeTank", count=2)], spawn=point_id(801245243));
+    enemy_home = unit(owner=2, unit_type="CommandCenter", at=point_id(963646506));
+    nydus_lure_zone = circle(center=point_id(414748663), radius=3);
+    nydus_enemy_target = circle(center=point_id(345918206), radius=1);
+    mainway_lure_zone = circle(center=point_id(1700296010), radius=7);
+    pathway_lure_zone = circle(center=point_id(703595856), radius=7);
+    pathway_midpoint = circle(center=point_id(172546533), radius=7);
+    __setup__ = setup(terminal_policy="first_wins");
+    review_rally = circle(center=point_id(328538018), radius=5);
+  }
+}

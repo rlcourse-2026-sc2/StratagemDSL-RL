@@ -1,0 +1,123 @@
+strategy yqgz_18_enter_signal {
+  world {
+    force zergling_force {
+      side = "ally";
+      role = "bait_and_main";
+    }
+    force enemy_siege_force {
+      side = "enemy";
+      role = "entrenched";
+    }
+    force enemy_support_force {
+      side = "enemy";
+      role = "support";
+    }
+    region tank_range {
+      role = "sacrifice_zone";
+    }
+    region allied_origin {
+      role = "counterattack_anchor";
+    }
+    region review_rally {
+      role = "corpus_gate";
+    }
+  }
+  initial { alive(zergling_force); alive(enemy_siege_force); alive(enemy_support_force); }
+  intent {
+    pattern SacrificeBait;
+    primary defeated(enemy_siege_force);
+    secondary alive(zergling_force);
+    success (defeated(enemy_siege_force) and defeated(enemy_support_force));
+    failure not (alive(zergling_force));
+  }
+  semantics {
+    derive bait_threshold_reached = ((count_in(zergling_force, tank_range) == 0) and (killed_in(zergling_force, tank_range) >= 3));
+  }
+  plan {
+    start [entrenched, review_failure_watch];
+    phase entrenched {
+      purpose "Siege Tanks and Marines remain in a strong defensive posture.";
+      actors [enemy_siege_force, enemy_support_force];
+      focus [tank_range];
+    }
+    phase sacrifice_bait {
+      purpose "Commit a bounded Zergling detachment into the tank firing zone.";
+      actors [zergling_force];
+      focus [tank_range];
+      do { move(zergling_force, tank_range); }
+    }
+    phase induce_advance {
+      purpose "After at least three bait deaths and no surviving bait in range, force the tanks out of Siege mode.";
+      actors [enemy_siege_force];
+      focus [allied_origin];
+    }
+    phase enemy_advances {
+      purpose "After Unsiege completes, the Marines and tanks leave the entrenched position and attack forward.";
+      actors [enemy_siege_force, enemy_support_force];
+      focus [zergling_force];
+      do parallel { attack(enemy_siege_force, zergling_force); attack(enemy_support_force, zergling_force); }
+    }
+    phase counterattack {
+      purpose "Use the surviving Zerglings to counterattack after the enemy gives up its positional advantage.";
+      actors [zergling_force];
+      focus [enemy_siege_force, enemy_support_force];
+    }
+    phase confirmed_counterattack {
+      purpose "\u786e\u8ba4\u53ef\u89c2\u6d4b\u76ee\u6807\u8fbe\u6210\uff0c\u9501\u5b9a\u8ba1\u5212\u6210\u529f\u3002";
+      actors [zergling_force];
+      terminal success;
+    }
+    phase review_gate {
+      purpose "\u5165\u533a\u4fe1\u53f7";
+      actors [zergling_force];
+    }
+    phase review_failure_watch {
+      purpose "\u72ec\u7acb\u68c0\u67e5intent.failure\uff1b\u5931\u8d25\u540e\u505c\u6b62\u6240\u6709\u8ba1\u5212\u5206\u652f\u3002";
+    }
+    phase review_failure {
+      purpose "\u663e\u5f0f\u5931\u8d25\u7ec8\u70b9\u3002";
+      terminal failure;
+    }
+    transition commit_bait: entrenched -> review_gate {
+      when (alive(zergling_force) and not (not (alive(zergling_force))));
+      priority 10;
+    }
+    transition loss_threshold: sacrifice_bait -> induce_advance {
+      on unit_died(zergling_force);
+      when (bait_threshold_reached and not (not (alive(zergling_force))));
+      do { set_mode(enemy_siege_force, "unsieged"); }
+      priority 10;
+    }
+    transition unsiege_complete: induce_advance -> enemy_advances {
+      on ability_completed(enemy_siege_force, "Unsiege");
+      when not (not (alive(zergling_force)));
+      priority 10;
+    }
+    transition counter_window: enemy_advances -> counterattack {
+      when (alive(zergling_force) and not (not (alive(zergling_force))));
+      priority 10;
+    }
+    transition confirm_counterattack: counterattack -> confirmed_counterattack {
+      when ((defeated(enemy_siege_force) and defeated(enemy_support_force)) and not (not (alive(zergling_force))));
+      priority 10;
+    }
+    transition review_release: review_gate -> sacrifice_bait {
+      on enter(zergling_force, tank_range);
+      when ((alive(zergling_force) and in_region(zergling_force, tank_range)) and not (not (alive(zergling_force))));
+      priority 10;
+    }
+    transition review_failure_detected: review_failure_watch -> review_failure {
+      when not (alive(zergling_force));
+      priority 0;
+    }
+  }
+  binding sc2 {
+    zergling_force = unit_group(owner=1, unit_type="Zergling", count=24, spawn=point_id(1734272525));
+    enemy_siege_force = unit_group(owner=2, unit_type="SiegeTankSieged", count=2, spawn=point_id(87331847));
+    enemy_support_force = unit_group(owner=2, unit_type="Marine", count=6, spawn=point_id(1260947834));
+    tank_range = circle(center=point_id(87331847), radius=15);
+    allied_origin = circle(center=point_id(1734272525), radius=3);
+    __setup__ = setup(terminal_policy="first_wins");
+    review_rally = circle(center=point_id(1734272525), radius=5);
+  }
+}

@@ -1,0 +1,75 @@
+strategy adcc_decoy_retarget {
+  world {
+    force strike_force { side = ally; role = covert_main; }
+    force decoy_force { side = ally; role = decoy; }
+    asset allied_home { side = ally; role = protected; }
+    force enemy_blockers { side = enemy; role = frontal_blocker; }
+    asset enemy_home { side = enemy; role = critical; }
+    region decoy_zone { role = diversion_trigger; }
+    region rear_zone { role = covert_objective; }
+  }
+
+  initial {
+    alive(strike_force);
+    alive(decoy_force);
+    alive(allied_home);
+    alive(enemy_blockers);
+    alive(enemy_home);
+  }
+
+  intent {
+    pattern CovertBypass;
+    primary destroyed(enemy_home);
+    secondary alive(strike_force);
+    success destroyed(enemy_home);
+    failure not alive(strike_force) or destroyed(allied_home);
+  }
+
+  semantics {
+    derive diversion_possible = alive(decoy_force) and alive(strike_force);
+  }
+
+  plan {
+    start [diversion];
+
+    phase diversion {
+      purpose "The blockers pressure the Hatchery while a decoy shows itself and the covert main force remains hidden.";
+      actors [enemy_blockers, decoy_force, strike_force];
+      focus [allied_home, decoy_zone, rear_zone];
+      do parallel {
+        attack(enemy_blockers, allied_home);
+        move(decoy_force, decoy_zone);
+        cast(strike_force, "Burrow");
+      }
+    }
+
+    phase bypass_window {
+      purpose "Enemy blockers retarget the decoy, opening a window for the covert main force.";
+      actors [strike_force];
+      focus [enemy_home];
+      do sequence {
+        move(strike_force, rear_zone);
+        attack(strike_force, enemy_home);
+      }
+      terminal success;
+    }
+
+
+    transition decoy_draws_blockers: diversion -> bypass_window {
+      on enter(decoy_force, decoy_zone);
+      do { retarget(enemy_blockers, decoy_force); }
+      priority 10;
+    }
+  }
+
+  binding sc2 {
+    strike_force = unit_group(owner=1, unit_type="Zergling", count=10, spawn=point_id(1532430748));
+    decoy_force = unit_group(owner=1, unit_type="Roach", count=3, spawn=point_id(1532430748));
+    allied_home = unit(owner=1, unit_type="Hatchery", at=point_id(1963276538));
+    enemy_blockers = unit_group(owner=2, unit_type="HellionTank", count=5, spawn=point_id(9034952));
+    enemy_home = unit(owner=2, unit_type="CommandCenter", at=point_id(1714395741));
+    decoy_zone = circle(center=point_id(9034952), radius=9);
+    rear_zone = circle(center=point_id(1714395741), radius=6);
+    __setup__ = setup(tech=[tech_requirements(player=1, enabled=false)]);
+  }
+}

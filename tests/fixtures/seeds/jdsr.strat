@@ -1,0 +1,47 @@
+strategy jdsr {
+  world {
+    force controller_force { side = ally; role = controller; }
+    force allied_main_force { side = ally; role = support; }
+    force borrowed_weapon { side = enemy; role = high_value_weapon; }
+    force enemy_support_force { side = enemy; role = support; }
+  }
+  initial { alive(controller_force); alive(allied_main_force); alive(borrowed_weapon); alive(enemy_support_force); }
+  intent {
+    pattern BorrowedWeapon;
+    primary defeated(enemy_support_force);
+    secondary alive(controller_force);
+    success defeated(enemy_support_force) and defeated(borrowed_weapon);
+    failure not alive(controller_force) and not alive(allied_main_force);
+  }
+  plan {
+    start [enemy_engagement];
+    phase enemy_engagement {
+      purpose "The Stalkers and Colossus actively pressure the allied Roach/Infestor force.";
+      actors [borrowed_weapon, enemy_support_force]; focus [controller_force, allied_main_force];
+      do parallel { attack(borrowed_weapon, allied_main_force); attack(enemy_support_force, allied_main_force); }
+    }
+    phase capture_weapon {
+      purpose "Use Neural Parasite to take temporary control of the enemy Colossus.";
+      actors [controller_force]; focus [borrowed_weapon];
+      do { control(controller_force, borrowed_weapon); }
+    }
+    phase redirect_power {
+      purpose "Redirect the borrowed Colossus firepower against its original side.";
+      actors [allied_main_force]; focus [enemy_support_force];
+      do { attack(allied_main_force, enemy_support_force); }
+    }
+    phase finish_enemy {
+      purpose "Finish the remaining enemy after the power balance is reversed.";
+      actors [allied_main_force]; focus [borrowed_weapon, enemy_support_force]; terminal success;
+    }
+    transition seek_control: enemy_engagement -> capture_weapon { when alive(controller_force); priority 10; }
+    transition redirect_after_control: capture_weapon -> redirect_power { when alive(controller_force); priority 10; }
+    transition finish: redirect_power -> finish_enemy { when alive(allied_main_force); priority 10; }
+  }
+  binding sc2 {
+    controller_force = unit_group(owner=1, unit_type="Infestor", count=1, spawn=point_id(172712063));
+    allied_main_force = unit_group(owner=1, unit_type="Roach", count=4, spawn=point_id(172712063));
+    borrowed_weapon = unit_group(owner=2, unit_type="Colossus", count=1, spawn=point_id(1043450641));
+    enemy_support_force = unit_group(owner=2, unit_type="Stalker", count=3, spawn=point_id(963254755));
+  }
+}

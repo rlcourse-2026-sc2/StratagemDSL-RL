@@ -1,0 +1,123 @@
+// 声东击西 (Feint) as a Petri net, on assets/base_maps/sdjx_te.SC2Map.
+//
+// The v0.5 corpus can only feint once (phases are entered once per round and
+// the plan must be acyclic). Here the Medivac decoy repeats the threat on the
+// main Nexus up to three times; the real strike on the expansion starts as
+// soon as either signal is in:
+//   go            ?pulled         at least one feint pulled the defenders (read arc)
+//   go_attrition  losses*3        three defender deaths counted (weighted arc)
+// `kill_slots` is the complement of `losses`, so the counter is bounded by
+// construction and the analysis proves every place bounded.
+strategy sdjx_feint_cycle {
+  world {
+    force feint_force { side = "ally"; role = "decoy"; }
+    force main_force { side = "ally"; role = "main_attack"; }
+    force defenders { side = "enemy"; role = "mobile_defense"; }
+    asset enemy_main { side = "enemy"; role = "fake_target"; }
+    asset enemy_expansion { side = "enemy"; role = "real_target"; }
+    region main_threat_zone { role = "feint_trigger"; }
+    region expansion_zone { role = "premature_attack_trigger"; }
+    region staging_zone { role = "regroup_zone"; }
+  }
+  initial { alive(feint_force); alive(main_force); alive(defenders); alive(enemy_main); alive(enemy_expansion); }
+  intent {
+    pattern Feint {
+      decoy = feint_force;
+      fake_target = enemy_main;
+      defenders = defenders;
+      main_force = main_force;
+      real_target = enemy_expansion;
+    }
+    primary destroyed(enemy_expansion);
+    secondary alive(main_force);
+    success destroyed(enemy_expansion);
+    failure not (alive(main_force));
+  }
+  semantics {
+    derive expansion_exposed = (count_in(defenders, expansion_zone) < 2);
+  }
+  plan {
+    start [feint, kill_watch, strike_wait, failure_watch];
+    place feint_budget { purpose "extra feints the decoy may still run"; initial 2; capacity 2; }
+    place pulled { purpose "one token per feint that pulled the defenders"; capacity 3; }
+    place kill_slots { purpose "defender deaths still to be counted"; initial 3; capacity 3; }
+    place losses { purpose "counted defender deaths"; capacity 3; }
+    phase feint {
+      purpose "Use Medivacs to create a credible threat against the high-ground main Nexus.";
+      repeatable;
+      actors [feint_force];
+      focus [enemy_main];
+      do { move(feint_force, main_threat_zone); }
+    }
+    phase regroup {
+      purpose "Pull the Medivacs back to the staging zone to threaten again.";
+      repeatable;
+      actors [feint_force];
+      focus [defenders];
+      do { move(feint_force, staging_zone); }
+    }
+    phase kill_watch {
+      purpose "Count defender deaths; each one moves a token from kill_slots to losses.";
+      repeatable;
+      actors [main_force];
+      focus [defenders];
+    }
+    phase strike_wait {
+      purpose "Keep the Marine main force available for the real expansion attack.";
+      actors [main_force];
+      focus [enemy_expansion];
+      do { hold(main_force); }
+    }
+    phase strike {
+      purpose "Attack the expansion after the mobile defenders have been pulled away.";
+      actors [main_force];
+      focus [enemy_expansion];
+      do { attack(main_force, enemy_expansion); }
+    }
+    phase won { purpose "The expansion is destroyed while the main force survives."; actors [main_force]; terminal success; }
+    phase failure_watch { purpose "Independently watch intent.failure."; }
+    phase lost { purpose "Explicit failure terminal."; terminal failure; }
+    transition threat: feint -> regroup, pulled {
+      on enter(feint_force, main_threat_zone);
+      when not (not (alive(main_force)));
+      do { retarget(defenders, enemy_main); }
+      priority 10;
+    }
+    transition feint_again: regroup, feint_budget -> feint {
+      on enter(feint_force, staging_zone);
+      when alive(feint_force);
+      priority 10;
+    }
+    transition count_kill: kill_watch, kill_slots -> kill_watch, losses {
+      on unit_died(defenders);
+      priority 10;
+    }
+    transition go: strike_wait, ?pulled -> strike {
+      when ((expansion_exposed and alive(main_force)) and not (not (alive(main_force))));
+      priority 10;
+    }
+    transition go_attrition: strike_wait, losses*3 -> strike {
+      when (alive(main_force) and not (not (alive(main_force))));
+      priority 11;
+    }
+    transition confirm: strike -> won {
+      when (destroyed(enemy_expansion) and not (not (alive(main_force))));
+      priority 10;
+    }
+    transition lose: failure_watch -> lost {
+      when not (alive(main_force));
+      priority 0;
+    }
+  }
+  binding sc2 {
+    feint_force = unit_group(owner=1, unit_type="Medivac", count=4, spawn=point_id(336436468));
+    main_force = unit_group(owner=1, unit_type="Marine", count=14, spawn=point_id(336436468));
+    defenders = unit_group(owner=2, composition=[unit(unit_type="Colossus", count=3), unit(unit_type="Stalker", count=4), unit(unit_type="Zealot", count=5)], spawn=point_id(16402191));
+    enemy_main = unit(owner=2, unit_type="Nexus", at=point_id(1887249362));
+    enemy_expansion = unit(owner=2, unit_type="Nexus", at=point_id(396610334));
+    main_threat_zone = circle(center=point_id(1887249362), radius=8);
+    expansion_zone = circle(center=point_id(396610334), radius=8);
+    staging_zone = circle(center=point_id(336436468), radius=6);
+    __setup__ = setup(terminal_policy="first_wins");
+  }
+}

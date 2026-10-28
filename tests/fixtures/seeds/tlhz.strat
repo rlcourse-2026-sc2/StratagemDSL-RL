@@ -1,0 +1,55 @@
+strategy tlhz {
+  world {
+    force worker { side = ally; role = builder; }
+    force larva_force { side = ally; role = latent_force; }
+    asset temporary_hatchery { side = ally; role = temporary_creep_source; initial = false; }
+    asset replacement_structure { side = ally; role = sacrificial_substitute; initial = false; }
+    asset enemy_pylon { side = enemy; role = support_target; }
+    asset enemy_cannon { side = enemy; role = static_threat; under_construction = true; }
+    region creep_zone { role = construction_substrate; }
+  }
+  initial { alive(worker); alive(larva_force); alive(enemy_pylon); alive(enemy_cannon); }
+  intent {
+    pattern AssetSubstitution;
+    primary destroyed(enemy_cannon) and destroyed(enemy_pylon);
+    secondary alive(worker);
+    success destroyed(enemy_cannon) and destroyed(enemy_pylon);
+    failure not alive(worker) and not alive(larva_force);
+  }
+  plan {
+    start [seed_creep];
+    phase seed_creep {
+      purpose "Use a temporary Hatchery to establish creep close to the enemy static defense.";
+      actors [worker]; focus [creep_zone]; do { build(worker, temporary_hatchery, creep_zone); }
+    }
+    phase substitute_structure {
+      purpose "Cancel the temporary Hatchery and replace it with an Evolution Chamber on the new creep.";
+      actors [worker]; focus [replacement_structure];
+      do sequence { cancel(temporary_hatchery); build(worker, replacement_structure, creep_zone); }
+    }
+    phase sacrifice_substitute {
+      purpose "Expose the replacement structure so its destruction produces a compensating combat opportunity.";
+      actors [worker]; focus [enemy_cannon, replacement_structure];
+    }
+    phase final_assault {
+      purpose "Morph the available Larva and combine the resulting force with the sacrifice payoff to destroy the Cannon and Pylon.";
+      actors [larva_force]; focus [enemy_cannon, enemy_pylon]; terminal success;
+    }
+    transition creep_ready: seed_creep -> substitute_structure { when creep_available(creep_zone); priority 10; }
+    transition replacement_exposed: substitute_structure -> sacrifice_substitute { when alive(worker); priority 10; }
+    transition payoff_ready: sacrifice_substitute -> final_assault { when alive(larva_force); priority 10; }
+  }
+  binding sc2 {
+    worker = unit_group(owner=1, unit_type="Drone", count=1, spawn=point_id(1175920911));
+    larva_force = unit_group(owner=1, unit_type="Larva", count=3, spawn=point_id(1280061530));
+    temporary_hatchery = unit(owner=1, unit_type="Hatchery", at=point_id(1280061530));
+    replacement_structure = unit(owner=1, unit_type="EvolutionChamber", at=point_id(1280061530));
+    enemy_pylon = unit(owner=2, unit_type="Pylon", at=point_id(1241426966));
+    enemy_cannon = unit(owner=2, unit_type="PhotonCannon", at=point_id(1722940916));
+    creep_zone = circle(center=point_id(1280061530), radius=6);
+    __setup__ = setup(
+      resources=[minerals(player=1, value=500), minerals(player=2, value=1000), supplies_made(player=1, value=200)],
+      terrain=[creep(region=creep_zone, enabled=true)]
+    );
+  }
+}

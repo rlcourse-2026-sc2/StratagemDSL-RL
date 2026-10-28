@@ -1,0 +1,125 @@
+strategy wwjz_18_enter_signal {
+  world {
+    force relief_force {
+      side = "ally";
+      role = "relief";
+    }
+    force enemy_siege_force {
+      side = "enemy";
+      role = "siege";
+    }
+    asset besieged_base {
+      side = "ally";
+      role = "protected";
+    }
+    asset enemy_home {
+      side = "enemy";
+      role = "critical";
+    }
+    region enemy_home_zone {
+      role = "threat_trigger";
+    }
+    region interception_zone {
+      role = "exploit";
+    }
+    region review_rally {
+      role = "corpus_gate";
+    }
+  }
+  initial { alive(relief_force); alive(enemy_siege_force); alive(besieged_base); alive(enemy_home); targeting(enemy_siege_force, besieged_base); }
+  intent {
+    pattern IndirectRelief {
+      relief_force = relief_force;
+      pressure_force = enemy_siege_force;
+      protected_target = besieged_base;
+      diversion_target = enemy_home;
+    }
+    primary base_relieved;
+    secondary alive(besieged_base);
+    success (alive(besieged_base) and (destroyed(enemy_home) or defeated(enemy_siege_force)));
+    failure destroyed(besieged_base);
+  }
+  semantics {
+    derive rear_threat_active = in_region(relief_force, enemy_home_zone);
+    derive base_relieved = not (targeting(enemy_siege_force, besieged_base));
+  }
+  plan {
+    start [siege, review_failure_watch];
+    phase siege {
+      purpose "Enemy force is besieging our Nexus; direct relief is too slow.";
+      actors [enemy_siege_force];
+      focus [besieged_base];
+      do { attack(enemy_siege_force, besieged_base); }
+    }
+    phase threaten_home {
+      purpose "Threaten the enemy rear instead of returning directly.";
+      actors [relief_force];
+      focus [enemy_home];
+      do { move(relief_force, enemy_home_zone); }
+    }
+    phase force_redeploy {
+      purpose "Force the siege force to abandon the Nexus and retarget.";
+      actors [enemy_siege_force];
+      focus [enemy_home, relief_force];
+    }
+    phase intercept {
+      purpose "Exploit enemy redeployment and attack the returning force.";
+      actors [relief_force];
+      focus [enemy_siege_force];
+      do { attack(relief_force, enemy_siege_force); }
+    }
+    phase confirmed_intercept {
+      purpose "\u786e\u8ba4\u53ef\u89c2\u6d4b\u76ee\u6807\u8fbe\u6210\uff0c\u9501\u5b9a\u8ba1\u5212\u6210\u529f\u3002";
+      actors [relief_force];
+      terminal success;
+    }
+    phase review_gate {
+      purpose "\u5165\u533a\u4fe1\u53f7";
+      actors [relief_force];
+    }
+    phase review_failure_watch {
+      purpose "\u72ec\u7acb\u68c0\u67e5intent.failure\uff1b\u5931\u8d25\u540e\u505c\u6b62\u6240\u6709\u8ba1\u5212\u5206\u652f\u3002";
+    }
+    phase review_failure {
+      purpose "\u663e\u5f0f\u5931\u8d25\u7ec8\u70b9\u3002";
+      terminal failure;
+    }
+    transition choose_indirect_relief: siege -> review_gate {
+      when not (destroyed(besieged_base));
+      priority 10;
+    }
+    transition rear_threat_causes_retarget: threaten_home -> force_redeploy {
+      on enter(relief_force, enemy_home_zone);
+      when (alive(besieged_base) and not (destroyed(besieged_base)));
+      do { retarget(enemy_siege_force, relief_force); }
+      priority 10;
+    }
+    transition redeployment_opens_window: force_redeploy -> intercept {
+      when not (destroyed(besieged_base));
+      priority 10;
+    }
+    transition confirm_intercept: intercept -> confirmed_intercept {
+      when ((alive(besieged_base) and (destroyed(enemy_home) or defeated(enemy_siege_force))) and not (destroyed(besieged_base)));
+      priority 10;
+    }
+    transition review_release: review_gate -> threaten_home {
+      on enter(relief_force, enemy_home_zone);
+      when ((alive(relief_force) and in_region(relief_force, enemy_home_zone)) and not (destroyed(besieged_base)));
+      priority 10;
+    }
+    transition review_failure_detected: review_failure_watch -> review_failure {
+      when destroyed(besieged_base);
+      priority 0;
+    }
+  }
+  binding sc2 {
+    relief_force = unit_group(owner=1, unit_type="Zealot", count=7, spawn=point_id(1457691274));
+    enemy_siege_force = unit_group(owner=2, composition=[unit(unit_type="Hellion", count=8), unit(unit_type="Marine", count=6)], spawn=point_id(1132184898));
+    besieged_base = unit(owner=1, unit_type="Nexus", at=point_id(485533860));
+    enemy_home = unit(owner=2, unit_type="CommandCenter", at=point_id(1597154638));
+    enemy_home_zone = circle(center=point_id(1597154638), radius=5);
+    interception_zone = circle(center=point_id(1597154638), radius=7);
+    __setup__ = setup(terminal_policy="first_wins");
+    review_rally = circle(center=point_id(1457691274), radius=5);
+  }
+}

@@ -1,0 +1,320 @@
+start: translation_unit
+
+translation_unit: external_declaration*
+
+forward_definition: function_declaration ";"
+type_declaration: TYPEDEF type_specifier TYPE_IDENTIFIER ";"
+native_declaration: NATIVE type_specifier declarator [parameter_list] ";"
+include_directive: INCLUDE STRING_LITERAL
+
+external_declaration: forward_definition
+	| function_definition
+	| structure_definition
+	| declaration
+	| type_declaration
+	| native_declaration
+	| include_directive
+	| ";"
+
+// DECLARATION ----------------------------------------
+// { static const int[10] }|{ a = 1 + 2 + 3 } ;
+declaration: declaration_specifiers init_declarator ";"
+
+init_declarator: declarator
+	| declarator ASSIGN initializer
+
+declarator: IDENTIFIER
+
+initializer: expression
+
+declaration_specifiers: [storage_class_specifier] [type_qualifier] type_specifier
+
+storage_class_specifier: STATIC
+
+type_qualifier: CONST
+
+type_specifier: base_type_specifier
+    | base_type_specifier array_dimensions
+
+array_dimensions: ("[" expression "]")+
+
+base_type_specifier: VOID
+	| INT // int to fixed √
+	| FIXED // fixed to int ×
+	| BOOL
+	| STRING
+	| BYTE
+	| UNITFILTER
+	| UNITGROUP
+	| UNIT
+	| POINT
+	| TIMER
+	| REGION
+	| TRIGGER
+	| WAVE
+	| ACTOR
+	| REVEALER
+	| PLAYERGROUP
+	| TEXT
+	| SHUFFLER
+	| SOUND
+	| SOUNDLINK
+	| COLOR
+	| ABILCMD
+	| ORDER
+	| MARKER
+	| BANK
+	| CAMERAINFO
+	| ACTORSCOPE
+	| AIFILTER
+	| WAVETARGET
+	| EFFECTHISTORY
+	| BITMASK
+	| DATETIME
+	| DOODAD
+	| GENERICHANDLE
+	| TRANSMISSIONSOURCE
+	| UNITREF
+	| WAVEINFO
+	| STRUCTREF_TYPE
+	| FUNCREF_TYPE
+	| TYPE_IDENTIFIER
+
+
+// STRUCT DEFINITION ----------------------------------------
+// struct s {int a; string b;};
+structure_definition: STRUCT struct_name struct_body ";"
+
+struct_name: TYPE_IDENTIFIER
+
+struct_body: "{" field_declaration+ "}"
+
+field_declaration: type_specifier declarator ";"
+
+
+// FUNCTION DEFINITION ----------------------------------------
+// static int func(int p1, string p2) {
+// 	# declaration first
+// 	# statement
+// }
+function_definition: function_declaration function_body
+
+function_declaration: [storage_class_specifier] type_specifier function_name parameter_list
+
+function_name: IDENTIFIER
+
+parameter_list: "(" [parameter_declaration ("," parameter_declaration)*] ")"
+
+parameter_declaration: base_type_specifier IDENTIFIER
+
+function_body: "{" declaration* statement* "}"
+
+
+// STATEMENT ----------------------------------------
+// 
+statement: compound_statement // {;;;}
+	| selection_statement // if then else
+	| iteration_statement // for / while / do-while
+	| jump_statement // break / continue / return
+	| funcall_statement ";" // func();
+	| assignment_statement ";" // x = 1;
+	| ";"
+
+compound_statement: "{" statement* "}"
+
+selection_statement: if_statement (ELSE if_statement)* [ELSE compound_statement]
+
+if_statement: IF "(" expression ")" compound_statement
+
+iteration_statement: WHILE "(" expression ")" compound_statement	-> while_statement
+	| DO compound_statement WHILE "(" expression ")" ";"			-> do_statement
+	| FOR "(" [assignment_statement | funcall_statement] SEMICOLON [expression] SEMICOLON [assignment_statement | funcall_statement] ")" compound_statement		-> for_statement
+
+jump_statement: CONTINUE ";"
+	| BREAK ";"
+	| BREAKPOINT ";"
+	| RETURN [expression] ";"
+
+funcall_statement: postfix_expression "(" [argument_list] ")"
+
+assignment_statement: postfix_expression assignment_operator expression
+
+assignment_operator: ASSIGN
+	| MUL_ASSIGN
+	| ADD_ASSIGN
+	| SUB_ASSIGN
+	| DIV_ASSIGN
+	| MOD_ASSIGN
+	| LEFT_ASSIGN
+	| RIGHT_ASSIGN
+	| AND_ASSIGN
+	| XOR_ASSIGN
+	| OR_ASSIGN
+
+// EXPRESSION ----------------------------------------
+// e
+expression: logical_or_expression
+// e1 || e2
+logical_or_expression: logical_and_expression (LOGICAL_OR_OP logical_and_expression)*
+// e1 && e2
+logical_and_expression: bitwise_or_expression (LOGICAL_AND_OP bitwise_or_expression)*
+// e1 | e2
+bitwise_or_expression: bitwise_xor_expression (BITWISE_OR_OP bitwise_xor_expression)*
+// e1 ^ e2
+bitwise_xor_expression: bitwise_and_expression (BITWISE_XOR_OP bitwise_and_expression)*
+// e1 & e2
+bitwise_and_expression: equality_expression (BITWISE_AND_OP equality_expression)*
+// e1 ==/!= e2
+equality_expression: relational_expression (( EQ_OP | NE_OP ) relational_expression)*
+// e1 <* e2
+relational_expression: shift_expression (( LT_OP | GT_OP | LE_OP | GE_OP ) shift_expression)*
+// e1 << e2
+shift_expression: additive_expression (( LEFT_OP | RIGHT_OP ) additive_expression)*
+// e1 +- e2
+additive_expression: multiplicative_expression (( ADD_OP | SUB_OP ) multiplicative_expression)*
+// e1 */% e2
+multiplicative_expression: unary_expression (( MUL_OP | DIV_OP | MOD_OP ) unary_expression)*
+// +-~! e
+unary_expression: unary_operator* postfix_expression
+// e.[idx] / e.(param) / e.field
+postfix_expression: primary_expression postfix_suffix*
+
+primary_expression: IDENTIFIER // variable
+	| CONSTANT // number
+	| STRING_LITERAL // string
+	| TRUE // Boolean value
+    | FALSE
+    | NULL
+	| "(" expression ")"
+
+postfix_suffix: "[" expression "]"	-> index_access
+    | "(" [argument_list] ")"		-> function_call
+    | "." IDENTIFIER				-> field_access
+
+argument_list: expression ("," expression)*
+
+unary_operator: POSITIVE
+	| NEGATIVE
+	| LOGICAL_NOT	// !, logical not
+	| BITWISE_NOT	// ~, bitwise not
+
+
+// TOKEN ----------------------------------------
+BREAKPOINT.2: /breakpoint\b/	// parse_output_return_version
+CONTINUE.2: /continue\b/
+RETURN.2: /return\b/
+BREAK.2: /break\b/
+WHILE.2: /while\b/
+ELSE.2: /else\b/
+FOR.2: /for\b/
+DO.2: /do\b/
+IF.2: /if\b/
+
+STRING.2: /string\b/
+FIXED.2: /fixed\b/
+BOOL.2: /bool\b/
+VOID.2: /void\b/
+INT.2: /int\b/
+BYTE.2: /byte\b/
+
+FALSE.2: /false\b/ 
+CONST.2: /const\b/
+NULL.2: /null\b/
+TRUE.2: /true\b/
+
+TYPEDEF.2: /typedef\b/
+STATIC.2: /static\b/
+STRUCT.2: /struct\b/
+INCLUDE.2: /include\b/
+NATIVE.2: /native\b/
+
+FUNCREF_TYPE.2: /funcref\s*<\s*[a-zA-Z_][a-zA-Z0-9_]*\s*>/
+STRUCTREF_TYPE.2: /structref\s*<\s*[a-zA-Z_][a-zA-Z0-9_]*\s*>/
+UNITFILTER.2: /unitfilter\b/
+UNITGROUP.2: /unitgroup\b/
+UNITREF.2: /unitref\b/
+UNIT.2: /unit\b/
+WAVETARGET.2: /wavetarget\b/
+WAVEINFO.2: /waveinfo\b/
+WAVE.2: /wave\b/
+ACTORSCOPE.2: /actorscope\b/
+ACTOR.2: /actor\b/
+SOUNDLINK.2: /soundlink\b/
+SOUND.2: /sound\b/
+POINT.2: /point\b/
+TIMER.2: /timer\b/
+REGION.2: /region\b/
+TRIGGER.2: /trigger\b/
+REVEALER.2: /revealer\b/
+PLAYERGROUP.2: /playergroup\b/
+TEXT.2: /text\b/
+COLOR.2: /color\b/
+SHUFFLER.2: /shuffler\b/
+ABILCMD.2: /abilcmd\b/
+ORDER.2: /order\b/
+MARKER.2: /marker\b/
+BANK.2: /bank\b/
+CAMERAINFO.2: /camerainfo\b/
+AIFILTER.2: /aifilter\b/
+EFFECTHISTORY.2: /effecthistory\b/
+BITMASK.2: /bitmask\b/
+DATETIME.2: /datetime\b/
+DOODAD.2: /doodad\b/
+GENERICHANDLE.2: /generichandle\b/
+TRANSMISSIONSOURCE.2: /transmissionsource\b/
+
+POSITIVE: "+"
+NEGATIVE: "-"
+ADD_ASSIGN: "+="
+SUB_ASSIGN: "-="
+MUL_ASSIGN: "*="
+DIV_ASSIGN: "/="
+MOD_ASSIGN: "%="
+LEFT_ASSIGN: "<<="
+RIGHT_ASSIGN: ">>="
+AND_ASSIGN: "&="
+XOR_ASSIGN: "^="
+OR_ASSIGN: "|="
+RIGHT_OP: ">>"
+LEFT_OP: "<<"
+LE_OP: "<="
+GE_OP: ">="
+EQ_OP: "=="
+NE_OP: "!="
+ASSIGN: "="
+MUL_OP: "*"
+DIV_OP: "/"	
+MOD_OP: "%"
+ADD_OP: "+"
+SUB_OP: "-"
+LT_OP: "<"
+GT_OP: ">"
+LOGICAL_NOT: "!"
+LOGICAL_AND_OP: "&&"
+LOGICAL_OR_OP: "||"
+BITWISE_NOT: "~"
+BITWISE_AND_OP: "&"
+BITWISE_OR_OP: "|"
+BITWISE_XOR_OP: "^"
+SEMICOLON: ";"
+
+CONSTANT: /0[xX][a-fA-F0-9]+[uUlL]*/                      // hex
+        | /0[0-7]+[uUlL]*/                                  // oct
+        | /[0-9]+[Ee][+-]?[0-9]+[flFL]?/                   // float 1
+        | /[0-9]*\.[0-9]+([Ee][+-]?[0-9]+)?[flFL]?/        // float 2
+        | /[0-9]+\.[0-9]*([Ee][+-]?[0-9]+)?[flFL]?/        // float 3
+        | /[0-9]+[uUlL]*/                                   // dec
+        | /L?'(\\.|[^\\'])'/                                // char
+
+STRING_LITERAL: /L?"(\\.|[^\\"])*"/
+
+BLOCK_COMMENT: /\/\*(.|\n)*?\*\//
+LINE_COMMENT: /\/\/[^\n]*/
+
+IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_]*/
+TYPE_IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_]*/
+
+%import common.WS
+%ignore WS
+%ignore BLOCK_COMMENT
+%ignore LINE_COMMENT

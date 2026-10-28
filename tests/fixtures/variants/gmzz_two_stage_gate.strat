@@ -1,0 +1,34 @@
+strategy gmzz_two_stage_gate {
+  world {
+    asset outer_gate { side = ally; role = first_barrier; }
+    asset inner_gate { side = ally; role = second_barrier; }
+    force defenders { side = ally; role = trap_force; }
+    force raiders { side = enemy; role = mobile_raiders; }
+    region outer_zone { role = commitment_zone; }
+    region inner_zone { role = kill_zone; }
+    region fallback { role = retreat; }
+  }
+  initial { alive(defenders); alive(raiders); }
+  intent { pattern Trap { enemy = raiders; lure = inner_zone; way_out = inner_gate; trap_force = defenders; objective = raiders; } primary defeated(raiders); secondary alive(defenders); success defeated(raiders); failure not alive(defenders); }
+  plan {
+    start [wait_outer];
+    phase wait_outer { purpose "Wait until the outer gate is lowered and raiders enter the first compartment."; actors [raiders]; focus [outer_zone]; }
+    phase draw_inner { purpose "After outer commitment, the raiders are pulled deeper toward the defenders."; actors [raiders]; focus [inner_zone]; }
+    phase close_inner { purpose "The inner barrier is raised after the enemy reaches the kill compartment."; actors [raiders]; focus [inner_gate]; do { set_mode(inner_gate, "raised"); } }
+    phase finish { purpose "Destroy the raiders while both barriers deny easy disengagement."; actors [defenders]; focus [raiders]; do { attack(defenders, raiders); } terminal success; }
+    phase escape { purpose "The raiders escape to the fallback area before the second closure."; actors [raiders]; focus [fallback]; terminal failure; }
+    transition outer_opened: wait_outer -> draw_inner { on ability_completed(outer_gate, "SupplyDepotLower"); do { move(raiders, inner_zone); } priority 10; }
+    transition inner_commit: draw_inner -> close_inner { on enter(raiders, inner_zone); do { retreat(raiders, fallback); } priority 10; }
+    transition inner_closed: close_inner -> finish { on ability_completed(inner_gate, "SupplyDepotRaise"); do { attack(raiders, defenders); } priority 10; }
+    transition escaped: close_inner -> escape { on enter(raiders, fallback); priority 20; }
+  }
+  binding sc2 {
+    outer_gate = unit(owner=1, unit_type="SupplyDepot", at=point_id(36022368));
+    inner_gate = unit(owner=1, unit_type="SupplyDepot", at=point_id(515963392));
+    defenders = unit_group(owner=1, unit_type="Marine", count=6, spawn=point_id(1922637032));
+    raiders = unit_group(owner=2, unit_type="Zergling", count=10, spawn=point_id(964991801));
+    outer_zone = circle(center=point_id(381816086), radius=4);
+    inner_zone = circle(center=point_id(381816102), radius=4);
+    fallback = circle(center=point_id(298592631), radius=3);
+  }
+}

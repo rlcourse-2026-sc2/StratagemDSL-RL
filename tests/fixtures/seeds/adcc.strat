@@ -1,0 +1,51 @@
+strategy adcc {
+  world {
+    force allied_force { side = ally; role = covert_strike; }
+    asset allied_home { side = ally; role = protected; }
+    force enemy_blockers { side = enemy; role = frontal_blocker; }
+    asset enemy_home { side = enemy; role = critical; }
+    region enemy_rear_zone { role = rear_objective; }
+  }
+  initial { alive(allied_force); alive(allied_home); alive(enemy_blockers); alive(enemy_home); }
+  intent {
+    pattern CovertBypass {
+      covert_force = allied_force;
+      blocker = enemy_blockers;
+      rear_region = enemy_rear_zone;
+      target = enemy_home;
+    }
+    primary destroyed(enemy_home);
+    secondary alive(allied_force);
+    success destroyed(enemy_home);
+    failure not alive(allied_force) or destroyed(allied_home);
+  }
+  plan {
+    start [incoming_pressure];
+    phase incoming_pressure {
+      purpose "Enemy anti-light force pressures the Hatchery and makes frontal combat unattractive.";
+      actors [enemy_blockers]; focus [allied_home];
+      do { attack(enemy_blockers, allied_home); }
+    }
+    phase covert_bypass {
+      purpose "Use Burrow or an alternate route to bypass the frontal blocker.";
+      actors [allied_force]; focus [enemy_rear_zone];
+      do sequence { cast(allied_force, "Burrow"); move(allied_force, enemy_rear_zone); }
+    }
+    phase rear_assault {
+      purpose "Attack the enemy rear Command Center after bypassing the blocker.";
+      actors [allied_force]; focus [enemy_home];
+      do { attack(allied_force, enemy_home); }
+      terminal success;
+    }
+    transition choose_indirect_route: incoming_pressure -> covert_bypass { when alive(allied_force); priority 10; }
+    transition reach_enemy_rear: covert_bypass -> rear_assault { when alive(allied_force); priority 10; }
+  }
+  binding sc2 {
+    allied_force = unit_group(owner=1, unit_type="Zergling", count=16, spawn=point_id(1532430748));
+    allied_home = unit(owner=1, unit_type="Hatchery", at=point_id(1963276538));
+    enemy_blockers = unit_group(owner=2, unit_type="HellionTank", count=4, spawn=point_id(9034952));
+    enemy_home = unit(owner=2, unit_type="CommandCenter", at=point_id(1714395741));
+    enemy_rear_zone = circle(center=point_id(1714395741), radius=6);
+    __setup__ = setup(tech=[tech_requirements(player=1, enabled=false)]);
+  }
+}

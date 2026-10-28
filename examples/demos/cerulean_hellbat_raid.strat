@@ -1,0 +1,83 @@
+// Cerulean Fall LE variant of the "Just Another StarCraft II Map" script:
+//   MapInit  : fog/mask off, tech requirements off, spawn both sides,
+//              enemy Hellbats attack the Zerg Hatchery;
+//   all dead : when players 1 and 2 have no live units, respawn and repeat.
+// Both behaviours come from the backend program skeleton (gt_MapInit /
+// gt_Reset); this file adds the plan the Zerg side is judged against.
+// Coordinates come from the base map terrain (72 x 72): the Zerg main is on
+// the south-west high ground (cliff level 3), the Terran base on the
+// north-east level 2 plateau, joined by ramps through the middle.
+strategy CeruleanHellbatRaid {
+  world {
+    force zergling_force { side = ally; role = "defender"; }
+    asset zerg_hatchery { side = ally; role = "critical"; }
+    force enemy_hellbats { side = enemy; role = "raider"; }
+    asset enemy_command_center { side = enemy; role = "objective"; }
+    region hatchery_zone { role = "defense_perimeter"; }
+  }
+  initial { alive(zergling_force); alive(zerg_hatchery); alive(enemy_hellbats); alive(enemy_command_center); }
+  intent {
+    primary destroyed(enemy_command_center);
+    secondary alive(zerg_hatchery);
+    success (destroyed(enemy_command_center) and alive(zerg_hatchery));
+    failure destroyed(zerg_hatchery);
+  }
+  plan {
+    start [hellbat_raid, failure_watch];
+    phase hellbat_raid {
+      purpose "Enemy Hellbats advance across the ramps and attack the Hatchery.";
+      actors [enemy_hellbats];
+      focus [zerg_hatchery];
+      do { attack(enemy_hellbats, zerg_hatchery); }
+    }
+    phase hold_hatchery {
+      purpose "Zerglings intercept the raiders inside the Hatchery perimeter.";
+      actors [zergling_force];
+      focus [enemy_hellbats];
+      do { attack(zergling_force, enemy_hellbats); }
+    }
+    phase counterattack {
+      purpose "With the raid repelled, Zerglings march on the enemy Command Center.";
+      actors [zergling_force];
+      focus [enemy_command_center];
+      do { attack(zergling_force, enemy_command_center); }
+    }
+    phase raid_repelled_victory {
+      purpose "Command Center destroyed while the Hatchery still stands.";
+      actors [zergling_force];
+      terminal success;
+    }
+    phase failure_watch {
+      purpose "Independently watch for the loss of the Hatchery.";
+    }
+    phase hatchery_lost {
+      purpose "Hatchery destroyed; the plan has failed.";
+      terminal failure;
+    }
+    transition raiders_arrive: hellbat_raid -> hold_hatchery {
+      on enter(enemy_hellbats, hatchery_zone);
+      when (alive(zergling_force) and not destroyed(zerg_hatchery));
+      priority 10;
+    }
+    transition raid_repelled: hold_hatchery -> counterattack {
+      when (defeated(enemy_hellbats) and alive(zergling_force) and not destroyed(zerg_hatchery));
+      priority 10;
+    }
+    transition base_destroyed: counterattack -> raid_repelled_victory {
+      when ((destroyed(enemy_command_center) and alive(zerg_hatchery)) and not destroyed(zerg_hatchery));
+      priority 10;
+    }
+    transition hatchery_destroyed: failure_watch -> hatchery_lost {
+      when destroyed(zerg_hatchery);
+      priority 0;
+    }
+  }
+  binding sc2 {
+    zergling_force = unit_group(owner=1, unit_type="Zergling", count=16, spawn=point_xy(21, 22));
+    zerg_hatchery = unit(owner=1, unit_type="Hatchery", at=point_xy(16.5, 18.5));
+    enemy_hellbats = unit_group(owner=2, unit_type="HellionTank", count=4, spawn=point_xy(42, 57));
+    enemy_command_center = unit(owner=2, unit_type="CommandCenter", at=point_xy(44.5, 60.5));
+    hatchery_zone = circle(center=point_xy(16.5, 18.5), radius=10);
+    __setup__ = setup(terminal_policy="first_wins");
+  }
+}

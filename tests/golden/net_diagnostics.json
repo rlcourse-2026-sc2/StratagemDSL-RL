@@ -1,0 +1,32 @@
+{
+ "tests/fixtures/petri_negative/competing_sync.strat": {
+  "loose": [
+   "[WARNING] N011_NEVER_MARKED: plan node 'done' is structurally reachable but no run of the plan net marks it",
+   "[WARNING] N011_NEVER_MARKED: plan node 'win' is structurally reachable but no run of the plan net marks it",
+   "[WARNING] N010_DEAD_TRANSITION: transition 'sync' can never fire: its input places are never marked together, or a higher-ranked transition always takes the token first",
+   "[WARNING] N050_NO_SUCCESS_PATH: no run of the plan net reaches a success terminal"
+  ],
+  "strict": [
+   "[WARNING] N011_NEVER_MARKED: plan node 'done' is structurally reachable but no run of the plan net marks it",
+   "[WARNING] N011_NEVER_MARKED: plan node 'win' is structurally reachable but no run of the plan net marks it",
+   "[WARNING] N010_DEAD_TRANSITION: transition 'sync' can never fire: its input places are never marked together, or a higher-ranked transition always takes the token first",
+   "[WARNING] N050_NO_SUCCESS_PATH: no run of the plan net reaches a success terminal"
+  ]
+ },
+ "tests/fixtures/petri_negative/unbounded_counter.strat": {
+  "loose": [
+   "[ERROR] N001_UNBOUNDED_PLACE: place 'kills' can exceed 64 tokens; declare `capacity` (witness: count_kill, count_kill, count_kill, count_kill, count_kill, count_kill)"
+  ],
+  "strict": [
+   "[ERROR] N001_UNBOUNDED_PLACE: place 'kills' can exceed 64 tokens; declare `capacity` (witness: count_kill, count_kill, count_kill, count_kill, count_kill, count_kill)"
+  ]
+ },
+ "tests/fixtures/petri_negative/zeno_cycle.strat": {
+  "loose": [
+   "[ERROR] N030_IMMEDIATE_CYCLE: immediate transitions form a cycle through ping -> pong -> ping; the token game would never settle -- give one transition an event or a live guard"
+  ],
+  "strict": [
+   "[ERROR] N030_IMMEDIATE_CYCLE: immediate transitions form a cycle through ping -> pong -> ping; the token game would never settle -- give one transition an event or a live guard"
+  ]
+ }
+}

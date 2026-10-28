@@ -1,0 +1,70 @@
+strategy swct {
+  world {
+    force transport_force { side = ally; role = insertion; }
+    force control_force { side = ally; role = terrain_control; }
+    force allied_presence { side = ally; role = proximity_observer; initial = false; }
+    force enemy_defenders { side = enemy; role = mobile_defense; }
+    asset enemy_home { side = enemy; role = critical; }
+    region home_threat_zone { role = lure_trigger; }
+    region ramp_block_zone { role = mobility_choke; }
+  }
+  initial { alive(transport_force); alive(control_force); alive(enemy_defenders); alive(enemy_home); }
+  intent {
+    pattern Trap {
+      enemy = enemy_defenders;
+      lure = enemy_home;
+      way_out = ramp_block_zone;
+      trap_force = control_force;
+      objective = enemy_home;
+    }
+    primary destroyed(enemy_home);
+    secondary alive(control_force);
+    success destroyed(enemy_home) or defeated(enemy_defenders);
+    failure not alive(control_force);
+  }
+  plan {
+    start [insert_force];
+    phase insert_force {
+      purpose "Use Warp Prism transport to place Sentries on the enemy high ground.";
+      actors [transport_force, control_force]; focus [enemy_home];
+      do { transport(transport_force, control_force, home_threat_zone); }
+    }
+    phase wait_commitment {
+      purpose "Threaten the Hatchery until enough allied units are committed nearby or the Hatchery is attacked.";
+      actors [control_force]; focus [enemy_home, home_threat_zone];
+    }
+    join enemy_returned any;
+    phase close_ramp {
+      purpose "After the Zerglings return, use Force Field to remove the ramp as an escape/approach route.";
+      actors [control_force]; focus [ramp_block_zone]; do { block(control_force, ramp_block_zone); }
+    }
+    phase assault_home {
+      purpose "Exploit the constrained enemy mobility and attack the Hatchery.";
+      actors [control_force]; focus [enemy_home]; do { attack(control_force, enemy_home); } terminal success;
+    }
+    transition inserted: insert_force -> wait_commitment { when alive(control_force); priority 10; }
+    transition proximity_commit: wait_commitment -> enemy_returned {
+      on enter(allied_presence, home_threat_zone); when count_in(allied_presence, home_threat_zone) >= 2;
+      do { retarget(enemy_defenders, enemy_home); } priority 10;
+    }
+    transition attacked_commit: wait_commitment -> enemy_returned {
+      on unit_attacked(enemy_home); do { retarget(enemy_defenders, enemy_home); } priority 20;
+    }
+    transition close_after_return: enemy_returned -> close_ramp { when alive(control_force); priority 10; }
+    transition exploit: close_ramp -> assault_home { when alive(control_force); priority 10; }
+  }
+  binding sc2 {
+    transport_force = unit_group(owner=1, unit_type="WarpPrism", count=1, spawn=point_id(1843575778));
+    control_force = unit_group(owner=1, unit_type="Sentry", count=4, spawn=point_id(933802495));
+    allied_presence = dynamic_group(owner=1);
+    enemy_defenders = unit_group(owner=2, unit_type="Zergling", count=10, spawn=point_id(232630513));
+    enemy_home = unit(owner=2, unit_type="Hatchery", at=point_id(376668369));
+    home_threat_zone = circle(center=point_id(376668369), radius=7);
+    ramp_block_zone = circle(center=point_id(376668369), radius=2);
+    __setup__ = setup(behaviors=[
+      remove_behavior(asset=enemy_home, name="SpawnLarva"),
+      remove_behavior(asset=enemy_home, name="ZergBuildingDies9"),
+      remove_behavior(asset=enemy_home, name="makeCreep8x6")
+    ]);
+  }
+}

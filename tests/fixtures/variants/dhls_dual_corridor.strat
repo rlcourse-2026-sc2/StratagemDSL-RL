@@ -1,0 +1,103 @@
+strategy dhls_dual_corridor {
+  world {
+    force bait_force { side = ally; role = mobile_bait; }
+    force main_force { side = ally; role = base_assault; }
+    asset allied_home { side = ally; role = protected; }
+    force enemy_guard_force { side = enemy; role = base_guard; }
+    asset enemy_home { side = enemy; role = critical; }
+    region left_lure_zone { role = lure_left; }
+    region right_lure_zone { role = lure_right; }
+    region left_pull_target { role = redirect_left; }
+    region right_pull_target { role = redirect_right; }
+  }
+
+  initial {
+    alive(bait_force);
+    alive(main_force);
+    alive(enemy_guard_force);
+    alive(enemy_home);
+    alive(allied_home);
+  }
+
+  intent {
+    pattern Lure;
+    primary destroyed(enemy_home);
+    secondary alive(main_force);
+    success destroyed(enemy_home) or defeated(enemy_guard_force);
+    failure destroyed(allied_home) or not alive(main_force);
+  }
+
+  plan {
+    start [lure_choice];
+
+    phase lure_choice {
+      purpose "The bait can choose either flank corridor; the first credible lure commits the enemy guard.";
+      actors [bait_force];
+      focus [left_lure_zone, right_lure_zone];
+    }
+
+    phase left_pull {
+      purpose "Enemy guard commits toward the left/Nydus-side corridor.";
+      actors [enemy_guard_force];
+      focus [left_pull_target];
+    }
+
+    phase right_pull {
+      purpose "Enemy guard commits toward the right/pathway corridor.";
+      actors [enemy_guard_force];
+      focus [right_pull_target];
+    }
+
+    phase exploit_left {
+      purpose "Exploit the left-side displacement and attack the base.";
+      actors [main_force];
+      focus [enemy_home];
+      do { attack(main_force, enemy_home); }
+      terminal success;
+    }
+
+    phase exploit_right {
+      purpose "Exploit the right-side displacement and attack the base.";
+      actors [main_force];
+      focus [enemy_home];
+      do { attack(main_force, enemy_home); }
+      terminal success;
+    }
+
+    transition choose_left: lure_choice -> left_pull {
+      on enter(bait_force, left_lure_zone);
+      do { move(enemy_guard_force, left_pull_target); }
+      priority 10;
+    }
+
+    transition choose_right: lure_choice -> right_pull {
+      on enter(bait_force, right_lure_zone);
+      do { move(enemy_guard_force, right_pull_target); }
+      priority 20;
+    }
+
+    transition left_committed: left_pull -> exploit_left {
+      on enter(enemy_guard_force, left_pull_target);
+      do { attack(enemy_guard_force, allied_home); }
+      priority 10;
+    }
+
+    transition right_committed: right_pull -> exploit_right {
+      on enter(enemy_guard_force, right_pull_target);
+      do { attack(enemy_guard_force, allied_home); }
+      priority 10;
+    }
+  }
+
+  binding sc2 {
+    bait_force = unit_group(owner=1, unit_type="Zergling", count=4, spawn=point_id(328538018));
+    main_force = unit_group(owner=1, unit_type="Roach", count=7, spawn=point_id(328538018));
+    allied_home = unit(owner=1, unit_type="Hatchery", at=point_id(1100075540));
+    enemy_guard_force = unit_group(owner=2, composition=[unit(unit_type="Marine", count=8), unit(unit_type="SiegeTank", count=2)], spawn=point_id(801245243));
+    enemy_home = unit(owner=2, unit_type="CommandCenter", at=point_id(963646506));
+    left_lure_zone = circle(center=point_id(414748663), radius=4);
+    right_lure_zone = circle(center=point_id(703595856), radius=7);
+    left_pull_target = circle(center=point_id(345918206), radius=2);
+    right_pull_target = circle(center=point_id(172546533), radius=6);
+  }
+}

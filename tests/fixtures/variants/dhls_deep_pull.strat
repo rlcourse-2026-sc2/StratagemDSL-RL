@@ -1,0 +1,93 @@
+strategy dhls_deep_pull {
+  world {
+    force bait_force { side = ally; role = deep_lure; }
+    force main_force { side = ally; role = assault; }
+    asset allied_home { side = ally; role = protected; }
+    force enemy_guard_force { side = enemy; role = base_guard; }
+    asset enemy_home { side = enemy; role = critical; }
+    region first_lure_zone { role = initial_stimulus; }
+    region midpoint { role = intermediate_pull; }
+    region deep_target { role = deep_pull; }
+  }
+
+  initial {
+    alive(bait_force);
+    alive(main_force);
+    alive(enemy_guard_force);
+    alive(enemy_home);
+    alive(allied_home);
+  }
+
+  intent {
+    pattern Lure;
+    primary destroyed(enemy_home);
+    secondary alive(main_force);
+    success destroyed(enemy_home) or defeated(enemy_guard_force);
+    failure destroyed(allied_home) or not alive(main_force);
+  }
+
+  semantics {
+    derive bait_available = alive(bait_force) and alive(main_force);
+  }
+
+  plan {
+    start [first_stimulus];
+
+    phase first_stimulus {
+      purpose "The bait exposes itself on the side pathway to initiate the pull.";
+      actors [bait_force];
+      focus [first_lure_zone];
+      do { move(bait_force, first_lure_zone); }
+    }
+
+    phase first_pull {
+      purpose "Enemy guard leaves the base and moves to the first midpoint.";
+      actors [enemy_guard_force];
+      focus [midpoint];
+    }
+
+    phase deep_pull {
+      purpose "After reaching the midpoint, the enemy is pulled a second time farther from the base.";
+      actors [enemy_guard_force];
+      focus [deep_target];
+    }
+
+    phase base_assault {
+      purpose "The main force attacks only after the enemy has committed to the deep target.";
+      actors [main_force];
+      focus [enemy_home];
+      do { attack(main_force, enemy_home); }
+      terminal success;
+    }
+
+
+    transition stimulus_pull: first_stimulus -> first_pull {
+      on enter(bait_force, first_lure_zone);
+      do { move(enemy_guard_force, midpoint); }
+      priority 10;
+    }
+
+    transition midpoint_repull: first_pull -> deep_pull {
+      on enter(enemy_guard_force, midpoint);
+      do { move(enemy_guard_force, deep_target); }
+      priority 10;
+    }
+
+    transition deep_commitment: deep_pull -> base_assault {
+      on enter(enemy_guard_force, deep_target);
+      do { attack(enemy_guard_force, allied_home); }
+      priority 10;
+    }
+  }
+
+  binding sc2 {
+    bait_force = unit_group(owner=1, unit_type="Zergling", count=3, spawn=point_id(328538018));
+    main_force = unit_group(owner=1, composition=[unit(unit_type="Roach", count=6), unit(unit_type="Zergling", count=6)], spawn=point_id(328538018));
+    allied_home = unit(owner=1, unit_type="Hatchery", at=point_id(1100075540));
+    enemy_guard_force = unit_group(owner=2, composition=[unit(unit_type="Marine", count=7), unit(unit_type="SiegeTank", count=2)], spawn=point_id(801245243));
+    enemy_home = unit(owner=2, unit_type="CommandCenter", at=point_id(963646506));
+    first_lure_zone = circle(center=point_id(703595856), radius=7);
+    midpoint = circle(center=point_id(172546533), radius=6);
+    deep_target = circle(center=point_id(345918206), radius=3);
+  }
+}

@@ -1,0 +1,158 @@
+strategy sdjx_18_enter_signal {
+  world {
+    force feint_force {
+      side = "ally";
+      role = "decoy";
+    }
+    force main_force {
+      side = "ally";
+      role = "main_attack";
+    }
+    force defenders {
+      side = "enemy";
+      role = "mobile_defense";
+    }
+    asset enemy_main {
+      side = "enemy";
+      role = "fake_target";
+    }
+    asset enemy_expansion {
+      side = "enemy";
+      role = "real_target";
+    }
+    asset gas_a {
+      side = "enemy";
+      role = "scenery";
+    }
+    asset gas_b {
+      side = "enemy";
+      role = "scenery";
+    }
+    asset enemy_pylon {
+      side = "enemy";
+      role = "support";
+    }
+    region main_threat_zone {
+      role = "feint_trigger";
+    }
+    region expansion_zone {
+      role = "premature_attack_trigger";
+    }
+    region review_rally {
+      role = "corpus_gate";
+    }
+  }
+  initial { alive(feint_force); alive(main_force); alive(defenders); alive(enemy_main); alive(enemy_expansion); }
+  intent {
+    pattern Feint {
+      decoy = feint_force;
+      fake_target = enemy_main;
+      defenders = defenders;
+      main_force = main_force;
+      real_target = enemy_expansion;
+    }
+    primary destroyed(enemy_expansion);
+    secondary alive(main_force);
+    success destroyed(enemy_expansion);
+    failure not (alive(main_force));
+  }
+  semantics {
+    derive expansion_exposed = (in_region(feint_force, main_threat_zone) and (count_in(defenders, expansion_zone) < 2));
+  }
+  plan {
+    start [feint, review_gate, expansion_watch, review_failure_watch];
+    phase feint {
+      purpose "Use Medivacs to create a credible threat against the high-ground main Nexus.";
+      actors [feint_force];
+      focus [enemy_main];
+      do { move(feint_force, main_threat_zone); }
+    }
+    phase prepare_strike {
+      purpose "Keep the Marine main force available for the real expansion attack.";
+      actors [main_force];
+      focus [enemy_expansion];
+      do { hold(main_force); }
+    }
+    phase expansion_watch {
+      purpose "Watch for a premature direct approach to the expansion before the feint succeeds.";
+      actors [main_force];
+      focus [enemy_expansion];
+    }
+    phase premature_attack {
+      purpose "If the main force approaches too early, enemy defenders re-protect the expansion.";
+      actors [defenders];
+      focus [enemy_expansion];
+      terminal failure;
+    }
+    join strike_ready all;
+    phase strike {
+      purpose "Attack the expansion after the mobile defenders have been pulled to the main base.";
+      actors [main_force];
+      focus [enemy_expansion];
+      do { attack(main_force, enemy_expansion); }
+    }
+    phase confirmed_strike {
+      purpose "\u786e\u8ba4\u53ef\u89c2\u6d4b\u76ee\u6807\u8fbe\u6210\uff0c\u9501\u5b9a\u8ba1\u5212\u6210\u529f\u3002";
+      actors [main_force];
+      terminal success;
+    }
+    phase review_gate {
+      purpose "\u5165\u533a\u4fe1\u53f7";
+      actors [feint_force];
+    }
+    phase review_failure_watch {
+      purpose "\u72ec\u7acb\u68c0\u67e5intent.failure\uff1b\u5931\u8d25\u540e\u505c\u6b62\u6240\u6709\u8ba1\u5212\u5206\u652f\u3002";
+    }
+    phase review_failure {
+      purpose "\u663e\u5f0f\u5931\u8d25\u7ec8\u70b9\u3002";
+      terminal failure;
+    }
+    transition feint_induces_redeploy: feint -> strike_ready {
+      on enter(feint_force, main_threat_zone);
+      when not (not (alive(main_force)));
+      do { retarget(defenders, enemy_main); }
+      priority 10;
+    }
+    transition main_force_ready: prepare_strike -> strike_ready {
+      when (alive(main_force) and not (not (alive(main_force))));
+      priority 10;
+    }
+    transition premature_expansion_approach: expansion_watch -> premature_attack {
+      on enter(main_force, expansion_zone);
+      when not (expansion_exposed);
+      do { retarget(defenders, enemy_expansion); }
+      priority 10;
+    }
+    transition launch_real_attack: strike_ready -> strike {
+      when ((expansion_exposed and alive(main_force)) and not (not (alive(main_force))));
+      priority 10;
+    }
+    transition confirm_strike: strike -> confirmed_strike {
+      when (destroyed(enemy_expansion) and not (not (alive(main_force))));
+      priority 10;
+    }
+    transition review_release: review_gate -> prepare_strike {
+      on enter(feint_force, main_threat_zone);
+      when ((alive(feint_force) and in_region(feint_force, main_threat_zone)) and not (not (alive(main_force))));
+      priority 10;
+    }
+    transition review_failure_detected: review_failure_watch -> review_failure {
+      when not (alive(main_force));
+      priority 0;
+    }
+  }
+  binding sc2 {
+    feint_force = unit_group(owner=1, composition=[unit(unit_type="Medivac", count=2, at=point_id(336436468)), unit(unit_type="Medivac", count=2, at=point_id(1017891732))], spawn=point_id(336436468));
+    main_force = unit_group(owner=1, unit_type="Marine", count=14, spawn=point_id(336436468));
+    defenders = unit_group(owner=2, composition=[unit(unit_type="Colossus", count=3), unit(unit_type="Stalker", count=4), unit(unit_type="Zealot", count=5)], spawn=point_id(16402191));
+    enemy_main = unit(owner=2, unit_type="Nexus", at=point_id(1887249362));
+    enemy_expansion = unit(owner=2, unit_type="Nexus", at=point_id(396610334));
+    gas_a = unit(owner=2, unit_type="Assimilator", at=point_id(1977438158));
+    gas_b = unit(owner=2, unit_type="Assimilator", at=point_id(250759362));
+    enemy_pylon = unit(owner=2, unit_type="Pylon", at=point_id(1431291728));
+    main_threat_zone = circle(center=point_id(1887249362), radius=8);
+    expansion_zone = circle(center=point_id(396610334), radius=8);
+    __setup__ = setup(terminal_policy="first_wins");
+    review_rally = circle(center=point_id(336436468), radius=5);
+  }
+}

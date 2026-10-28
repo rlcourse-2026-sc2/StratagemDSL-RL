@@ -1,0 +1,14 @@
+# Every text file is stored and checked out with LF, on Windows too, so copies
+# moved between Windows and Linux never show up as whole-file changes.
+* text=auto eol=lf
+
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+*.SC2Map binary
+*.so     binary
+*.dll    binary
+*.exe    binary
+*.png    binary
+*.zip    binary

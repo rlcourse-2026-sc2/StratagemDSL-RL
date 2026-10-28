@@ -1,0 +1,34 @@
+[project]
+name = "stratagemdsl"
+version = "0.6.0"
+description = "StratagemDSL: strategy language compiled to StarCraft II Galaxy triggers"
+requires-python = ">=3.10"
+dependencies = ["lark>=1.1", "antlr4-python3-runtime==4.13.2", "pydantic>=2"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+llm = ["openai>=1.0", "anthropic>=0.30"]
+net = ["snakes>=0.9.33"]  # optional third-party cross-check of the net semantics
+play = ["pysc2>=4.0", "openai>=1.0", "anthropic>=0.30"]  # strat play against StarCraft II (docs/PLAY.md)
+
+[project.scripts]
+strat = "stratagemdsl.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+stratagemdsl = ["frontend/grammar/*", "frontend/_generated/*.interp", "frontend/_generated/*.tokens"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--import-mode=importlib"
+pythonpath = ["tests/support", "tests/l3_net"]
+markers = [
+    "compiler: needs the vendored galaxycc compiler (layer 5)",
+    "stormlib: needs the native StormLib library (layer 6)",
+]

@@ -1,0 +1,63 @@
+strategy wzsy {
+  world {
+    force real_force { side = ally; role = real_force; }
+    force apparent_force { side = ally; role = apparent_force; initial = false; }
+    force enemy_force { side = enemy; role = advancing_force; }
+    asset enemy_home { side = enemy; role = retreat_anchor; }
+    asset midway_target { side = enemy; role = exploit_target; }
+    region enemy_fallback { role = retreat_region; }
+  }
+  initial { alive(real_force); alive(enemy_force); alive(enemy_home); alive(midway_target); }
+  intent {
+    pattern ApparentStrengthDeception;
+    primary destroyed(midway_target) or defeated(enemy_force);
+    secondary alive(real_force);
+    success destroyed(midway_target) or defeated(enemy_force);
+    failure not alive(real_force);
+  }
+  semantics { derive deception_threshold = count(apparent_force) >= 10; }
+  plan {
+    start [enemy_advances];
+    phase enemy_advances {
+      purpose "The stronger enemy force actively attacks the small real force.";
+      actors [enemy_force]; focus [real_force]; do { attack(enemy_force, real_force); }
+    }
+    phase create_illusion {
+      purpose "Use Hallucination to inflate apparent force size without adding real combat power.";
+      actors [real_force]; focus [enemy_force]; do { cast(real_force, "Hallucination"); }
+    }
+    phase enemy_retreats {
+      purpose "When close-range apparent count reaches the threshold, the enemy retreats.";
+      actors [enemy_force]; focus [enemy_fallback];
+    }
+    phase exploit_retreat {
+      purpose "Attack the exposed midway Pylon or pursue the withdrawing force.";
+      actors [real_force]; focus [midway_target, enemy_force]; do { attack(real_force, midway_target); } terminal success;
+    }
+    phase deception_failed {
+      purpose "If apparent count collapses below the threshold, the enemy resumes the attack.";
+      actors [enemy_force]; focus [real_force]; terminal failure;
+    }
+    transition begin_deception: enemy_advances -> create_illusion { when alive(real_force); priority 10; }
+    transition apparent_strength_forces_retreat: create_illusion -> enemy_retreats {
+      on unit_attacked(apparent_force);
+      when distance(real_force, enemy_force) <= 12 and deception_threshold;
+      do { retreat(enemy_force, enemy_fallback); }
+      priority 10;
+    }
+    transition illusion_collapses: create_illusion -> deception_failed {
+      on unit_died(apparent_force); when count(apparent_force) < 10;
+      do { attack(enemy_force, real_force); }
+      priority 20;
+    }
+    transition exploit_window: enemy_retreats -> exploit_retreat { when alive(real_force); priority 10; }
+  }
+  binding sc2 {
+    real_force = unit_group(owner=1, composition=[unit(unit_type="Stalker", count=2), unit(unit_type="Sentry", count=4)], spawn=point_id(618916323));
+    apparent_force = dynamic_group(owner=1);
+    enemy_force = unit_group(owner=2, composition=[unit(unit_type="Immortal", count=3), unit(unit_type="Zealot", count=5)], spawn=point_id(1207435008));
+    enemy_home = unit(owner=2, unit_type="Nexus", at=point_id(1750436181));
+    midway_target = unit(owner=2, unit_type="Pylon", at=point_id(2101230312));
+    enemy_fallback = circle(center=point_id(1207435008), radius=3);
+  }
+}

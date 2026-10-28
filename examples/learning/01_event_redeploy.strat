@@ -1,0 +1,51 @@
+strategy EventRedeploy {
+  world {
+    force allies { side = ally; role = "main_attack"; }
+    force guards { side = enemy; role = "mobile_defense"; }
+    asset base { side = enemy; role = "critical"; }
+    region gate { role = "observation_zone"; }
+  }
+  intent {
+    primary destroyed(base);
+    success destroyed(base);
+    failure not alive(allies);
+  }
+  plan {
+    start [approach, fail_watch];
+    phase approach {
+      purpose "Approach the observation zone";
+      actors [allies]; focus [base];
+      do { move(allies, gate); }
+    }
+    phase exploit {
+      purpose "Attack while observing the result";
+      actors [allies]; focus [base];
+      do { attack(allies, base); }
+    }
+    phase win { purpose "Confirm the objective"; terminal success; }
+    phase fail_watch { purpose "Observe allied defeat"; }
+    phase loss { purpose "Record failure"; terminal failure; }
+    transition react: approach -> exploit {
+      on enter(allies, gate);
+      when alive(allies);
+      do { retarget(guards, base); }
+      priority 10;
+    }
+    transition finish: exploit -> win {
+      when destroyed(base) and not (not alive(allies));
+      priority 10;
+    }
+    transition lose: fail_watch -> loss {
+      when not alive(allies); priority 0;
+    }
+  }
+  binding sc2 {
+    allies = unit_group(owner=1, unit_type="Marine", count=4,
+                        spawn=point_xy(25.96, 38.5798));
+    guards = unit_group(owner=2, unit_type="Zealot", count=3,
+                        spawn=point_xy(36.7597, 49.73));
+    base = unit(owner=2, unit_type="Nexus", at=point_xy(54.99, 47.18));
+    gate = circle(center=point_xy(54.99, 47.18), radius=8);
+    __setup__ = setup(terminal_policy="first_wins");
+  }
+}
